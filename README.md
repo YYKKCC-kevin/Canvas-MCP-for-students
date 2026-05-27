@@ -26,7 +26,7 @@ For academic work, use the workspace tools to understand requirements, draft you
 ```bash
 # Canvas credentials
 CANVAS_BASE_URL=https://canvas.eee.uci.edu
-CANVAS_ACCESS_TOKEN=your_canvas_access_token
+CANVAS_ACCESS_TOKEN=paste_your_canvas_access_token_here
 ```
 
 Canvas username/password are intentionally not used. Canvas API access should use a personal access token, which is safer and works better with campus SSO/2FA.
@@ -40,6 +40,19 @@ python -m venv .venv
 pip install -e .
 canvas-mcp
 ```
+
+## How To Get `CANVAS_ACCESS_TOKEN`
+
+1. Open your Canvas website in a browser, for example `https://canvas.eee.uci.edu` for UCI.
+2. Log in normally with your school Canvas/SSO username and password.
+3. Click `Account`.
+4. Click `Settings`.
+5. Find `Approved Integrations`.
+6. Click `New Access Token`.
+7. Give it a purpose such as `Canvas MCP for Students`.
+8. Copy the generated token immediately and paste it into `.env`.
+
+Do not put your Canvas username or password in `.env`. This MCP uses Canvas's API with an `Authorization: Bearer <token>` header, so the value it needs is the generated access token, not the login password.
 
 ## Codex MCP Config Snippet
 
@@ -64,6 +77,7 @@ Most users only need `CANVAS_BASE_URL` and `CANVAS_ACCESS_TOKEN`. `CANVAS_DOWNLO
 
 ## Canvas API References
 
+- Managing Canvas API access tokens: https://community.canvaslms.com/t5/Canvas-Basics-Guide/How-do-I-manage-API-access-tokens-in-my-user-account/ta-p/615312
 - Courses API: https://canvas.instructure.com/doc/api/courses.html
 - Assignments API: https://canvas.instructure.com/doc/api/assignments.html
 - Submissions API: https://canvas.instructure.com/doc/api/submissions.html
