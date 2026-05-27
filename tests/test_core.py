@@ -24,6 +24,7 @@ from canvas_mcp.tools.learning import (
     prepare_solution_review_artifact,
     prepare_homework_help_pack,
     review_submission_file,
+    review_solution_for_chat,
     review_solution_correctness,
 )
 from canvas_mcp.tools.sources import resolve_assignment_source_from_canvas
@@ -306,6 +307,8 @@ def test_prepare_solution_review_artifact_without_reference(tmp_path: Path) -> N
     assert "Reference status: missing" in result
     assert "derive a provisional expected solution" in text
     assert "Student Solution" in text
+    assert "do not stop after reporting this artifact path" in text
+    assert "In-Chat Review Prompt" in result
 
 
 def test_prepare_solution_review_artifact_with_reference_and_rubric(tmp_path: Path) -> None:
@@ -324,6 +327,24 @@ def test_prepare_solution_review_artifact_with_reference_and_rubric(tmp_path: Pa
     assert "Reference status: user-provided reference answer plus rubric" in result
     assert "Reference Answer" in text
     assert "Full credit requires" in text
+
+
+def test_review_solution_for_chat_returns_artifact_and_detected_signals(tmp_path: Path) -> None:
+    result = review_solution_for_chat(
+        "Homework 4",
+        solution_text="Problem 1\nFinal answer: 1/(12n).",
+        assignment_text="Problem 1: Compute the risk.",
+        reference_text="Problem 1\nFinal answer: 1/(2(n+1)(n+2)).",
+        output_dir=str(tmp_path),
+    )
+
+    assert "Chat-Ready Solution Review" in result
+    assert "User-Facing Chat Summary" in result
+    assert "Parts That May Be Inaccurate Or Need Revision" in result
+    assert "Solution Review Artifact Prepared" in result
+    assert "Missing or mismatched reference answer" in result
+    assert "Required Follow-Up In The Conversation" in result
+    assert "do not only return the artifact path" in result
 
 
 def test_learning_practice_version_changes_context() -> None:

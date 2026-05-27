@@ -27,6 +27,7 @@ from canvas_mcp.tools.learning import (
     prepare_solution_review_artifact,
     prepare_homework_help_pack,
     review_submission_file,
+    review_solution_for_chat,
     review_solution_correctness,
 )
 from canvas_mcp.tools.sources import resolve_assignment_source
@@ -280,6 +281,36 @@ def tool_prepare_solution_review_artifact(
     the agent reads the artifact and reasons through correctness.
     """
     return prepare_solution_review_artifact(
+        assignment_title,
+        solution_path,
+        solution_text,
+        assignment_text,
+        assignment_path,
+        reference_text,
+        reference_path,
+        rubric_text,
+        output_dir,
+    )
+
+
+@mcp.tool()
+def tool_review_solution_for_chat(
+    assignment_title: str,
+    solution_path: str | None = None,
+    solution_text: str | None = None,
+    assignment_text: str | None = None,
+    assignment_path: str | None = None,
+    reference_text: str | None = None,
+    reference_path: str | None = None,
+    rubric_text: str | None = None,
+    output_dir: str | None = None,
+) -> str:
+    """Prepare an artifact and return chat-ready correctness review guidance.
+
+    Use this when the user expects the assistant to tell them what is wrong
+    or needs revision directly in the conversation.
+    """
+    return review_solution_for_chat(
         assignment_title,
         solution_path,
         solution_text,

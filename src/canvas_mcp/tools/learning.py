@@ -396,6 +396,7 @@ def prepare_solution_review_artifact(
         "6. Do not rewrite a full solution unless the user asks; focus on actionable correctness feedback.",
         "7. Assign an honest confidence score from 0.0 to 1.0.",
         "8. If confidence is below 0.6, recommend human/manual review before submission.",
+        "9. In the conversation, tell the user what is inaccurate, incomplete, or needs revision; do not stop after reporting this artifact path.",
         "",
         "## Required Agent Output Format",
         "",
@@ -441,7 +442,124 @@ def prepare_solution_review_artifact(
         "- Next step: the agent should read this artifact and perform the correctness review using the required output format.\n\n"
         "### Readiness Notes\n"
         + "\n".join(f"- {item}" for item in readiness)
+        + "\n\n### In-Chat Review Prompt\n"
+        + "Ask the agent to read the artifact and answer directly in chat with:\n"
+        + "- What is likely correct?\n"
+        + "- What is inaccurate, incomplete, or needs revision?\n"
+        + "- Per-problem suggested fixes.\n"
+        + "- Whether the student should submit or revise first.\n"
     )
+
+
+def review_solution_for_chat(
+    assignment_title: str,
+    solution_path: str | None = None,
+    solution_text: str | None = None,
+    assignment_text: str | None = None,
+    assignment_path: str | None = None,
+    reference_text: str | None = None,
+    reference_path: str | None = None,
+    rubric_text: str | None = None,
+    output_dir: str | None = None,
+) -> str:
+    """Return a chat-ready review scaffold plus an artifact for deeper agent review."""
+    artifact_result = prepare_solution_review_artifact(
+        assignment_title,
+        solution_path,
+        solution_text,
+        assignment_text,
+        assignment_path,
+        reference_text,
+        reference_path,
+        rubric_text,
+        output_dir,
+    )
+    quick_review = review_solution_correctness(
+        assignment_title,
+        solution_path=solution_path,
+        solution_text=solution_text,
+        assignment_text=assignment_text,
+        assignment_path=assignment_path,
+        reference_text=reference_text,
+        reference_path=reference_path,
+        rubric_text=rubric_text,
+    )
+    chat_summary = _chat_review_summary(quick_review)
+
+    return (
+        "## Chat-Ready Solution Review\n\n"
+        "This output is intended to be shown directly to the user. The quick review "
+        "below lists automatically detected issues; the artifact gives the agent "
+        "the full context needed to reason problem-by-problem and explain what to fix.\n\n"
+        f"{chat_summary}\n\n"
+        f"{artifact_result}\n\n"
+        "## Automatically Detected Review Signals\n\n"
+        f"{quick_review}\n\n"
+        "## Required Follow-Up In The Conversation\n\n"
+        "- Read the artifact.\n"
+        "- Derive or verify the expected answer for each problem.\n"
+        "- Compare the student's actual steps and final answers against that expectation.\n"
+        "- Report concrete inaccuracies and suggested edits directly in chat; do not only return the artifact path.\n"
+        "- If the expected solution cannot be derived confidently, say so and ask for a reference/rubric or human review.\n"
+    )
+
+
+def _chat_review_summary(quick_review: str) -> str:
+    issues = _section_bullets(quick_review, "Possible Correctness Issues")
+    warnings = _section_bullets(quick_review, "Warnings")
+    verdict = _section_bullets(quick_review, "Verdict")
+
+    lines = [
+        "## User-Facing Chat Summary",
+        "",
+        "Use this as the starting point for the answer shown in chat.",
+        "",
+    ]
+    if verdict:
+        lines.append("### Current Automated Verdict")
+        lines.extend(verdict)
+        lines.append("")
+    if issues:
+        lines.append("### Parts That May Be Inaccurate Or Need Revision")
+        lines.extend(issues)
+        lines.append("")
+    else:
+        lines.append("### Parts That May Be Inaccurate Or Need Revision")
+        lines.append("- No specific mismatch was automatically detected.")
+        lines.append("")
+    if warnings:
+        lines.append("### Additional Checks To Tell The User")
+        lines.extend(warnings)
+        lines.append("")
+    lines.extend(
+        [
+            "### Important",
+            "- Automated signals are not enough for a final correctness judgment.",
+            "- The calling assistant should still read the artifact and give per-problem feedback directly in the conversation.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _section_bullets(markdown: str, heading: str) -> list[str]:
+    lines = markdown.splitlines()
+    start = None
+    marker = f"### {heading}"
+    for index, line in enumerate(lines):
+        if line.strip() == marker:
+            start = index + 1
+            break
+    if start is None:
+        return []
+
+    bullets: list[str] = []
+    for line in lines[start:]:
+        stripped = line.strip()
+        if stripped.startswith("### "):
+            break
+        if stripped.startswith("- "):
+            bullets.append(stripped)
+    return bullets
 
 
 def make_practice_version(
