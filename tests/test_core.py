@@ -23,6 +23,7 @@ from canvas_mcp.tools.learning import (
     make_practice_version,
     prepare_homework_help_pack,
 )
+from canvas_mcp.tools.sources import resolve_assignment_source_from_canvas
 from canvas_mcp.tools.submissions import submit_text_assignment, submit_url_assignment
 from canvas_mcp.tools.submissions import submit_file_assignment
 
@@ -232,6 +233,78 @@ def test_homework_help_pack_requests_confirmation_on_mismatch(monkeypatch) -> No
     assert "Homework Help Pack Awaiting Confirmation" in result
     assert "allow_mismatched_files=True" in result
     assert "Not Prepared" not in result
+
+
+def test_homework_help_pack_waits_when_source_is_external(monkeypatch) -> None:
+    def fake_prepare_assignment_workspace(*args, **kwargs) -> str:
+        return "\n".join(
+            [
+                "## Assignment Workspace Prepared",
+                "",
+                "- Folder: `/tmp/course_1/assignment_2_Assignment-4`",
+                "- Downloaded files: 0",
+            ]
+        )
+
+    monkeypatch.setattr(
+        "canvas_mcp.tools.learning.prepare_assignment_workspace",
+        fake_prepare_assignment_workspace,
+    )
+    monkeypatch.setattr(
+        "canvas_mcp.tools.learning.resolve_assignment_source",
+        lambda *args, **kwargs: "## Assignment Source Likely GitHub\n\n- repo",
+    )
+
+    result = prepare_homework_help_pack("1", "2")
+
+    assert "Homework Help Pack Awaiting Assignment Source" in result
+    assert "Assignment Source Likely GitHub" in result
+
+
+def test_assignment_source_resolver_detects_gradescope_link() -> None:
+    html = """
+    <p>Submit this homework on Gradescope.</p>
+    <p><a href="https://www.gradescope.com/courses/123/assignments/456">Gradescope HW</a></p>
+    """
+
+    result = resolve_assignment_source_from_canvas(
+        "Homework 4",
+        html,
+        "https://canvas.example.edu",
+    )
+
+    assert "Assignment Source Likely Gradescope" in result
+    assert "tool_gradescope_bridge_status" in result
+    assert "https://www.gradescope.com/courses/123/assignments/456" in result
+
+
+def test_assignment_source_resolver_detects_github_source() -> None:
+    html = """
+    <p>The homework is maintained in the course repo.</p>
+    <a href="https://github.com/example/stat220b-homework/blob/main/hw4.pdf">HW4</a>
+    """
+
+    result = resolve_assignment_source_from_canvas(
+        "Assignment 4",
+        html,
+        "https://canvas.example.edu",
+    )
+
+    assert "Assignment Source Likely GitHub" in result
+    assert "https://github.com/example/stat220b-homework/blob/main/hw4.pdf" in result
+
+
+def test_assignment_source_resolver_asks_user_when_canvas_source_is_missing() -> None:
+    result = resolve_assignment_source_from_canvas(
+        "Assignment 4",
+        "<p>See syllabus for details.</p>",
+        "https://canvas.example.edu",
+    )
+
+    assert "Assignment Source Needed From User" in result
+    assert "GitHub" in result
+    assert "Gradescope" in result
+    assert "local file" in result
 
 
 def test_extract_due_and_submission_target_detects_gradescope() -> None:

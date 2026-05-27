@@ -12,6 +12,12 @@ from canvas_mcp.tools.assignments import (
     prepare_assignment_workspace,
 )
 from canvas_mcp.tools.courses import list_courses
+from canvas_mcp.tools.gradescope_bridge import (
+    gradescope_bridge_status,
+    gradescope_get_assignment_details,
+    gradescope_list_assignments,
+    gradescope_list_courses,
+)
 from canvas_mcp.tools.learning import (
     check_my_draft,
     create_homework_template,
@@ -20,6 +26,7 @@ from canvas_mcp.tools.learning import (
     make_practice_version,
     prepare_homework_help_pack,
 )
+from canvas_mcp.tools.sources import resolve_assignment_source
 from canvas_mcp.tools.submissions import (
     get_my_submission,
     submit_file_assignment,
@@ -103,6 +110,29 @@ def tool_get_assignment_details(
 ) -> str:
     """Fetch a Canvas assignment's due date, submission state, instructions, and links."""
     return get_assignment_details(course_id, assignment_id, max_description_chars)
+
+
+@mcp.tool()
+def tool_resolve_assignment_source(
+    course_id: str,
+    assignment_id: str,
+    user_source_url: str | None = None,
+    user_source_kind: str | None = None,
+) -> str:
+    """Decide whether the assignment source is Canvas, GitHub, Gradescope, or user-provided.
+
+    Args:
+        course_id: Canvas course ID.
+        assignment_id: Canvas assignment ID.
+        user_source_url: Optional URL/path supplied by the user after clarification.
+        user_source_kind: Optional hint such as github, gradescope, or local_file.
+    """
+    return resolve_assignment_source(
+        course_id,
+        assignment_id,
+        user_source_url,
+        user_source_kind,
+    )
 
 
 @mcp.tool()
@@ -191,6 +221,40 @@ def tool_make_practice_version(
 def tool_extract_due_and_submission_target(assignment_details: str) -> str:
     """Extract the due date and whether submission is on Canvas, Gradescope, or unknown."""
     return extract_due_and_submission_target(assignment_details)
+
+
+@mcp.tool()
+def tool_gradescope_bridge_status(
+    gradescope_mcp_path: str | None = None,
+    check_login: bool = False,
+) -> str:
+    """Check optional local gradescope-mcp integration and credentials."""
+    return gradescope_bridge_status(gradescope_mcp_path, check_login)
+
+
+@mcp.tool()
+def tool_gradescope_list_courses(gradescope_mcp_path: str | None = None) -> str:
+    """List Gradescope courses through a local gradescope-mcp installation."""
+    return gradescope_list_courses(gradescope_mcp_path)
+
+
+@mcp.tool()
+def tool_gradescope_list_assignments(
+    course_id: str,
+    gradescope_mcp_path: str | None = None,
+) -> str:
+    """List Gradescope assignments through a local gradescope-mcp installation."""
+    return gradescope_list_assignments(course_id, gradescope_mcp_path)
+
+
+@mcp.tool()
+def tool_gradescope_get_assignment_details(
+    course_id: str,
+    assignment_id: str,
+    gradescope_mcp_path: str | None = None,
+) -> str:
+    """Get Gradescope assignment details through a local gradescope-mcp installation."""
+    return gradescope_get_assignment_details(course_id, assignment_id, gradescope_mcp_path)
 
 
 @mcp.tool()

@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 from canvas_mcp.tools.assignments import get_assignment_details, prepare_assignment_workspace
+from canvas_mcp.tools.sources import resolve_assignment_source
 
 
 QUESTION_RE = re.compile(r"(?m)^\s*(\d+)\.\s+(.+?)(?=^\s*\d+\.\s+|\Z)", re.S)
@@ -270,6 +271,19 @@ def prepare_homework_help_pack(
             "user confirms, rerun this tool with `allow_mismatched_files=True`.\n\n"
             f"{workspace_result}"
         )
+    source_result = resolve_assignment_source(course_id, assignment_id)
+    if _workspace_has_no_downloads(workspace_result) and _source_needs_clarification(
+        source_result
+    ):
+        return (
+            "## Homework Help Pack Awaiting Assignment Source\n\n"
+            "Canvas did not provide a clear usable file for this assignment, and the "
+            "source resolver found that the real prompt may be elsewhere. Ask the user "
+            "for the real assignment source, or inspect the linked GitHub/Gradescope "
+            "source before generating a help pack.\n\n"
+            f"{source_result}\n\n"
+            f"{workspace_result}"
+        )
     details = get_assignment_details(course_id, assignment_id, max_description_chars=50000)
     title = _title_from_details(details)
     folder = _folder_from_workspace_result(workspace_result)
@@ -316,6 +330,20 @@ def _folder_from_workspace_result(workspace_result: str) -> Path | None:
     if not match:
         return None
     return Path(match.group(1)).expanduser()
+
+
+def _workspace_has_no_downloads(workspace_result: str) -> bool:
+    return "- Downloaded files: 0" in workspace_result
+
+
+def _source_needs_clarification(source_result: str) -> bool:
+    waiting_headers = [
+        "## Assignment Source Likely Gradescope",
+        "## Assignment Source Likely GitHub",
+        "## Assignment Source Needed From User",
+        "## Assignment Source Needs User Confirmation",
+    ]
+    return any(header in source_result for header in waiting_headers)
 
 
 def _workspace_text(folder: Path) -> str:

@@ -8,8 +8,10 @@ Local MCP server for Canvas LMS. It is designed like a safer, cleaner cousin of 
 - Show upcoming, overdue, unsubmitted, or undated assignments with due dates.
 - Query Canvas planner/todo items.
 - Fetch full assignment details, including submission status and cleaned instructions.
+- Resolve where the real assignment prompt lives: Canvas files, GitHub, Gradescope, or a user-provided file/link.
 - Prepare a local assignment workspace with `assignment.md` and optionally downloaded linked files.
 - Create safe homework help packs: fill-in templates, hint packs, practice versions, and draft checklists.
+- Optionally bridge to a local `gradescope-mcp` install for Gradescope course/assignment lookup.
 - Submit completed student-authored text, URL, or file-upload assignments only when `confirm_write=True`.
 
 ## Safety Model
@@ -32,6 +34,12 @@ python -m venv .venv
 . .venv/bin/activate
 pip install -e ".[browser]"
 python -m playwright install chromium
+```
+
+If you also want the optional Gradescope bridge in the same environment:
+
+```bash
+pip install -e ".[browser,gradescope]"
 ```
 
 2. Copy `.env.example` to `.env` and fill in your Canvas login:
@@ -85,6 +93,20 @@ To create a token:
 
 In token mode, this MCP uses Canvas's API with an `Authorization: Bearer <token>` header.
 
+## Optional Gradescope Bridge
+
+Some courses use Canvas only for deadlines while the actual prompt or submission lives on Gradescope. If you also have `gradescope-mcp` locally, Canvas MCP can hand off read-only Gradescope lookup through bridge tools.
+
+Add these optional values to `.env`:
+
+```bash
+GRADESCOPE_MCP_PATH=/Users/yourname/gradescope-mcp
+GRADESCOPE_EMAIL=your_email@example.com
+GRADESCOPE_PASSWORD=your_password
+```
+
+If `gradescope-mcp` is cloned at `~/gradescope-mcp`, `GRADESCOPE_MCP_PATH` can be omitted. The bridge reuses `gradescope-mcp` for login and assignment lookup; write-capable Gradescope actions remain governed by that MCP's own confirmation rules.
+
 ## Codex MCP Config Snippet
 
 See `mcp-desktop-config-snippet.json`. If your path contains spaces, keep each argument as a separate JSON string exactly like the snippet.
@@ -95,15 +117,21 @@ See `mcp-desktop-config-snippet.json`. If your path contains spaces, keep each a
 2. `tool_list_courses`
 3. `tool_get_todo_items` or `tool_get_missing_work`
 4. `tool_get_assignment_details`
-5. `tool_prepare_assignment_workspace`
-6. `tool_prepare_homework_help_pack`
-7. Write your own solution in the generated template.
-8. Use `tool_check_my_draft` on your completed draft.
-9. If needed, manually review the result and call `tool_submit_text_assignment(...)`, `tool_submit_url_assignment(...)`, or `tool_submit_file_assignment(...)`.
-10. Submission tools first return a dry run. Re-run with `confirm_write=True` only after you have reviewed the exact completed work.
+5. `tool_resolve_assignment_source`
+6. If the source is Canvas, run `tool_prepare_assignment_workspace`.
+7. If the source is GitHub, inspect or clone the linked repo/file before preparing work.
+8. If the source is Gradescope, run `tool_gradescope_bridge_status`, then list Gradescope courses/assignments.
+9. `tool_prepare_homework_help_pack`
+10. Write your own solution in the generated template.
+11. Use `tool_check_my_draft` on your completed draft.
+12. If needed, manually review the result and call `tool_submit_text_assignment(...)`, `tool_submit_url_assignment(...)`, or `tool_submit_file_assignment(...)`.
+13. Submission tools first return a dry run. Re-run with `confirm_write=True` only after you have reviewed the exact completed work.
+
+If `tool_resolve_assignment_source` cannot identify the true prompt, it asks the user where the assignment lives instead of guessing.
 
 ## Homework Help Tools
 
+- `tool_resolve_assignment_source(course_id, assignment_id)`: checks whether the actual prompt is on Canvas, GitHub, Gradescope, or needs user clarification.
 - `tool_prepare_homework_help_pack(course_id, assignment_id)`: creates `homework_template.md`, `hint_pack.md`, `practice_version.md`, and `submission_target.md` beside the assignment files.
 - `tool_create_homework_template(...)`: creates a blank, fill-in structure by problem.
 - `tool_generate_hint_pack(...)`: gives concepts, formulas to consider, and checklist-style hints.
@@ -118,6 +146,13 @@ See `mcp-desktop-config-snippet.json`. If your path contains spaces, keep each a
 - `tool_submit_file_assignment(...)`: uploads a completed local file and submits it to a Canvas `online_upload` assignment.
 
 Canvas assignments that say to submit on Gradescope should be submitted through Gradescope, not with Canvas file upload.
+
+## Gradescope Bridge Tools
+
+- `tool_gradescope_bridge_status(...)`: checks whether local `gradescope-mcp` is available and optionally verifies login.
+- `tool_gradescope_list_courses(...)`: lists Gradescope courses through local `gradescope-mcp`.
+- `tool_gradescope_list_assignments(...)`: lists assignments for one Gradescope course.
+- `tool_gradescope_get_assignment_details(...)`: reads one Gradescope assignment's details.
 
 ## Notes
 
