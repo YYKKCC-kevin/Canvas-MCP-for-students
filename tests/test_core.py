@@ -10,7 +10,7 @@ from canvas_mcp.client import _next_link
 from canvas_mcp.client import CanvasClient
 from canvas_mcp.formatting import clean_html, due_status
 from canvas_mcp.browser_login import canvas_settings_url, normalize_base_url
-from canvas_mcp.tools.assignments import _canvas_attachment_download_url
+from canvas_mcp.tools.assignments import DEFAULT_DOWNLOAD_DIR, _canvas_attachment_download_url
 from canvas_mcp.tools.learning import (
     check_my_draft,
     create_homework_template,
@@ -117,6 +117,10 @@ def test_canvas_attachment_metadata_can_resolve_download_url() -> None:
         _canvas_attachment_download_url(Response())
         == "https://canvas.example.edu/files/1/download"
     )
+
+
+def test_default_download_dir_is_project_relative() -> None:
+    assert DEFAULT_DOWNLOAD_DIR == "canvas-mcp-downloads"
 
 
 def test_learning_template_keeps_student_work_blank() -> None:

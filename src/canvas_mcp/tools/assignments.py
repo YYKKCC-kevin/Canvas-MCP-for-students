@@ -55,6 +55,8 @@ DOWNLOAD_EXTENSIONS = {
     ".zip",
 }
 
+DEFAULT_DOWNLOAD_DIR = "canvas-mcp-downloads"
+
 
 def _assignment_params(bucket: str = "all") -> list[tuple[str, str]]:
     params = [
@@ -392,7 +394,7 @@ def prepare_assignment_workspace(
         )
         base_dir = Path(
             output_dir
-            or os.environ.get("CANVAS_DOWNLOAD_DIR", "/tmp/canvas-mcp-downloads")
+            or os.environ.get("CANVAS_DOWNLOAD_DIR", DEFAULT_DOWNLOAD_DIR)
         ).expanduser()
         work_dir = base_dir / f"course_{course_id}" / (
             f"assignment_{assignment_id}_{_slug(assignment.get('name') or 'assignment')}"
