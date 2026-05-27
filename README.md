@@ -12,7 +12,8 @@ Local MCP server for Canvas LMS. It is designed like a safer, cleaner cousin of 
 - Prepare a local assignment workspace with `assignment.md` and optionally downloaded linked files.
 - Create safe homework help packs: fill-in templates, hint packs, practice versions, and draft checklists.
 - Review a finished submission file before upload for readability, prompt-vs-solution mistakes, and problem coverage.
-- Review a student's solution for likely correctness issues, especially when a reference answer or rubric is provided.
+- Prepare Gradescope-style correctness review artifacts so an agent can judge solutions even when no reference answer is provided.
+- Run quick correctness checks when a reference answer or rubric is available.
 - Optionally bridge to a local `gradescope-mcp` install for Gradescope course/assignment lookup.
 - Submit completed student-authored text, URL, or file-upload assignments only when `confirm_write=True`.
 - Fall back to browser-based Canvas upload when Canvas rejects API file-upload initialization.
@@ -129,11 +130,12 @@ See `mcp-desktop-config-snippet.json`. If your path contains spaces, keep each a
 9. `tool_prepare_homework_help_pack`
 10. Write your own solution in the generated template.
 11. Use `tool_check_my_draft` while drafting.
-12. Use `tool_review_solution_correctness(...)` with your solution and, when available, a reference answer or rubric.
-13. Use `tool_review_submission_file(...)` on the final PDF/file before upload.
-14. Run the relevant submission tool once without `confirm_write` for a dry run.
-15. Re-run with `confirm_write=True` only after reviewing the exact file/path/assignment target.
-16. Run `tool_get_my_submission` after submission to confirm Canvas status.
+12. Use `tool_prepare_solution_review_artifact(...)` for agent-assisted correctness review, especially if no reference answer exists.
+13. Optionally use `tool_review_solution_correctness(...)` for faster reference/rubric-based checks.
+14. Use `tool_review_submission_file(...)` on the final PDF/file before upload.
+15. Run the relevant submission tool once without `confirm_write` for a dry run.
+16. Re-run with `confirm_write=True` only after reviewing the exact file/path/assignment target.
+17. Run `tool_get_my_submission` after submission to confirm Canvas status.
 
 If `tool_resolve_assignment_source` cannot identify the true prompt, it asks the user where the assignment lives instead of guessing.
 
@@ -162,11 +164,17 @@ The source resolver prevents common mistakes. For example, if Canvas says `Assig
 - `tool_generate_hint_pack(...)`: gives concepts, formulas to consider, and checklist-style hints.
 - `tool_make_practice_version(...)`: creates a similar but not identical practice plan.
 - `tool_check_my_draft(...)`: checks a student-authored draft for missing sections and common omissions.
-- `tool_review_solution_correctness(...)`: checks a solution for likely correctness issues. It is strongest when given `reference_text`, `reference_path`, or `rubric_text`; without those, it clearly reports low confidence and only performs internal consistency checks.
+- `tool_prepare_solution_review_artifact(...)`: prepares a Gradescope-style artifact containing the prompt, student solution, optional reference/rubric, and detailed agent instructions. This is the preferred way to let Codex/Claude review whether a student's solution is correct when no answer key is available.
+- `tool_review_solution_correctness(...)`: runs a faster automated correctness-oriented check. It is strongest when given `reference_text`, `reference_path`, or `rubric_text`; without those, it clearly reports low confidence and only performs internal consistency checks.
 - `tool_review_submission_file(...)`: reviews a finished file for readability, expected problem coverage, and prompt-file-vs-solution-file mistakes before upload.
 - `tool_extract_due_and_submission_target(...)`: summarizes the due date and whether Canvas or Gradescope appears to be the target.
 
-`tool_review_solution_correctness` is the correctness-oriented checker. It can catch missing reference conclusions, suspicious formula mismatches, missing problem sections, and rubric terms that do not appear in the solution. It is still not an official grade and cannot guarantee every proof step is correct. `tool_check_my_draft` and `tool_review_submission_file` remain structural checks that help catch dangerous submission mistakes like uploading the prompt instead of the solution.
+Correctness review has two modes:
+
+- Agent-assisted mode: run `tool_prepare_solution_review_artifact(...)`, then have Codex/Claude read the artifact and produce a per-problem correctness review. This mirrors the Gradescope MCP workflow: the MCP gathers and structures evidence, while the agent reasons from the prompt, solution, rubric, and domain knowledge.
+- Automated quick-check mode: run `tool_review_solution_correctness(...)`. This catches missing reference conclusions, suspicious formula mismatches, missing problem sections, and rubric terms that do not appear in the solution. It is not an official grade and cannot guarantee every proof step is correct.
+
+`tool_check_my_draft` and `tool_review_submission_file` remain structural checks that help catch dangerous submission mistakes like uploading the prompt instead of the solution.
 
 ## Submission Tools
 

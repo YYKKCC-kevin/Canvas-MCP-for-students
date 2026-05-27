@@ -6,7 +6,11 @@ import re
 import subprocess
 from pathlib import Path
 
-from canvas_mcp.tools.assignments import get_assignment_details, prepare_assignment_workspace
+from canvas_mcp.tools.assignments import (
+    DEFAULT_DOWNLOAD_DIR,
+    get_assignment_details,
+    prepare_assignment_workspace,
+)
 from canvas_mcp.tools.sources import resolve_assignment_source
 
 
@@ -337,6 +341,109 @@ def review_solution_correctness(
     return _finish_correctness_review(lines, issues, warnings, confidence, output_path)
 
 
+def prepare_solution_review_artifact(
+    assignment_title: str,
+    solution_path: str | None = None,
+    solution_text: str | None = None,
+    assignment_text: str | None = None,
+    assignment_path: str | None = None,
+    reference_text: str | None = None,
+    reference_path: str | None = None,
+    rubric_text: str | None = None,
+    output_dir: str | None = None,
+) -> str:
+    """Prepare a Gradescope-style artifact for agent correctness review."""
+    solution = _collect_text(solution_text, solution_path)
+    prompt = _collect_text(assignment_text, assignment_path)
+    reference = _collect_text(reference_text, reference_path)
+    rubric = _plain(rubric_text)
+
+    base_dir = Path(output_dir or "canvas-mcp-reviews").expanduser()
+    if not output_dir and DEFAULT_DOWNLOAD_DIR:
+        base_dir = Path(DEFAULT_DOWNLOAD_DIR).expanduser() / "reviews"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = base_dir / f"{_safe_slug(assignment_title or 'assignment')}-review.md"
+
+    reference_status = "user-provided reference answer" if reference else "missing"
+    if rubric and not reference:
+        reference_status = "rubric-only fallback"
+    elif reference and rubric:
+        reference_status = "user-provided reference answer plus rubric"
+
+    lines = [
+        f"# Solution Correctness Review Artifact: {assignment_title.strip() or 'Canvas Assignment'}",
+        "",
+        "This artifact is designed for an AI agent to review a student's work for likely correctness issues.",
+        "It mirrors the Gradescope MCP pattern: gather context first, then let the agent reason and report confidence.",
+        "",
+        "## Review Contract",
+        "",
+        f"- Assignment title: {assignment_title.strip() or 'Canvas Assignment'}",
+        f"- Solution source: `{solution_path}`" if solution_path else "- Solution source: inline text",
+        f"- Prompt source: `{assignment_path}`" if assignment_path else "- Prompt source: inline text or missing",
+        f"- Reference source: {reference_status}",
+        "- Preferred mode: correctness review before submission, not official grading.",
+        "- If no reference answer is available, draft a provisional grading basis from the prompt and domain knowledge.",
+        "- Treat any agent-drafted grading basis as fallible; lower confidence when the expected solution is not clear.",
+        "",
+        "## Agent Review Instructions",
+        "",
+        "1. Split the prompt and student solution by problem/subproblem.",
+        "2. If a reference answer exists, compare against it first.",
+        "3. If no reference answer exists, derive a provisional expected solution from the prompt before judging the student answer.",
+        "4. Check final answers, definitions, assumptions, important intermediate steps, and conclusions.",
+        "5. Flag arithmetic/algebra/proof gaps separately from notation or exposition issues.",
+        "6. Do not rewrite a full solution unless the user asks; focus on actionable correctness feedback.",
+        "7. Assign an honest confidence score from 0.0 to 1.0.",
+        "8. If confidence is below 0.6, recommend human/manual review before submission.",
+        "",
+        "## Required Agent Output Format",
+        "",
+        "- Overall verdict: likely correct / minor issues / needs revision / cannot determine",
+        "- Confidence: 0.0-1.0",
+        "- Per-problem review table: problem, status, evidence, issues, suggested fix",
+        "- Submission recommendation: submit / revise first / ask instructor or human reviewer",
+        "",
+        "## Assignment Prompt",
+        "",
+        prompt or "_No prompt text was provided. Ask the user for the assignment prompt before doing correctness review._",
+        "",
+        "## Student Solution",
+        "",
+        solution or "_No solution text was provided._",
+        "",
+        "## Reference Answer",
+        "",
+        reference or "_No reference answer provided. Use agent-drafted grading basis only._",
+        "",
+        "## Rubric / Grading Notes",
+        "",
+        rubric or "_No rubric provided._",
+    ]
+    artifact_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+    readiness = []
+    if not prompt:
+        readiness.append("Prompt text is missing; ask the user for the assignment prompt.")
+    if not solution:
+        readiness.append("Student solution text is missing or unreadable.")
+    if not reference and not rubric:
+        readiness.append(
+            "No reference answer or rubric is available; agent review should use low-to-medium confidence."
+        )
+    if not readiness:
+        readiness.append("Artifact has prompt and solution context.")
+
+    return (
+        "## Solution Review Artifact Prepared\n\n"
+        f"- Artifact: `{artifact_path}`\n"
+        f"- Reference status: {reference_status}\n"
+        "- Next step: the agent should read this artifact and perform the correctness review using the required output format.\n\n"
+        "### Readiness Notes\n"
+        + "\n".join(f"- {item}" for item in readiness)
+    )
+
+
 def make_practice_version(
     assignment_title: str,
     assignment_text: str | None,
@@ -574,6 +681,11 @@ def _collect_text(inline_text: str | None, file_path: str | None) -> str:
         if text:
             chunks.append(text)
     return "\n\n".join(chunks).strip()
+
+
+def _safe_slug(text: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", text.strip()).strip("-")
+    return slug[:80] or "assignment"
 
 
 def _problem_numbers(text: str | None) -> list[str]:

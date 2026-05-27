@@ -21,6 +21,7 @@ from canvas_mcp.tools.learning import (
     extract_due_and_submission_target,
     generate_hint_pack,
     make_practice_version,
+    prepare_solution_review_artifact,
     prepare_homework_help_pack,
     review_submission_file,
     review_solution_correctness,
@@ -288,6 +289,41 @@ def test_review_solution_correctness_passes_matching_reference(tmp_path: Path) -
 
     assert "No obvious correctness issues found" in result
     assert "Confidence: medium" in result
+
+
+def test_prepare_solution_review_artifact_without_reference(tmp_path: Path) -> None:
+    result = prepare_solution_review_artifact(
+        "Homework 4",
+        solution_text="Problem 1\nThe risk is 1/(2(n+1)(n+2)).",
+        assignment_text="Problem 1: Compute the risk.",
+        output_dir=str(tmp_path),
+    )
+
+    artifact = tmp_path / "Homework-4-review.md"
+    text = artifact.read_text(encoding="utf-8")
+
+    assert "Solution Review Artifact Prepared" in result
+    assert "Reference status: missing" in result
+    assert "derive a provisional expected solution" in text
+    assert "Student Solution" in text
+
+
+def test_prepare_solution_review_artifact_with_reference_and_rubric(tmp_path: Path) -> None:
+    result = prepare_solution_review_artifact(
+        "Homework 4",
+        solution_text="Problem 1\nThe risk is 1/(2(n+1)(n+2)).",
+        assignment_text="Problem 1: Compute the risk.",
+        reference_text="Problem 1\nThe risk is 1/(2(n+1)(n+2)).",
+        rubric_text="Full credit requires the correct risk formula.",
+        output_dir=str(tmp_path),
+    )
+
+    artifact = tmp_path / "Homework-4-review.md"
+    text = artifact.read_text(encoding="utf-8")
+
+    assert "Reference status: user-provided reference answer plus rubric" in result
+    assert "Reference Answer" in text
+    assert "Full credit requires" in text
 
 
 def test_learning_practice_version_changes_context() -> None:

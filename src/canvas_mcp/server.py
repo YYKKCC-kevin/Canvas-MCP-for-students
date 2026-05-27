@@ -24,6 +24,7 @@ from canvas_mcp.tools.learning import (
     extract_due_and_submission_target,
     generate_hint_pack,
     make_practice_version,
+    prepare_solution_review_artifact,
     prepare_homework_help_pack,
     review_submission_file,
     review_solution_correctness,
@@ -257,6 +258,37 @@ def tool_review_solution_correctness(
         reference_path,
         rubric_text,
         output_path,
+    )
+
+
+@mcp.tool()
+def tool_prepare_solution_review_artifact(
+    assignment_title: str,
+    solution_path: str | None = None,
+    solution_text: str | None = None,
+    assignment_text: str | None = None,
+    assignment_path: str | None = None,
+    reference_text: str | None = None,
+    reference_path: str | None = None,
+    rubric_text: str | None = None,
+    output_dir: str | None = None,
+) -> str:
+    """Prepare a Gradescope-style artifact for agent correctness review.
+
+    This is the preferred no-reference workflow: the MCP gathers the prompt,
+    student answer, optional rubric/reference, and review instructions; then
+    the agent reads the artifact and reasons through correctness.
+    """
+    return prepare_solution_review_artifact(
+        assignment_title,
+        solution_path,
+        solution_text,
+        assignment_text,
+        assignment_path,
+        reference_text,
+        reference_path,
+        rubric_text,
+        output_dir,
     )
 
 
