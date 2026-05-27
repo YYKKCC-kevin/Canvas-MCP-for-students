@@ -13,6 +13,12 @@ dependencies = [
 
 [project.scripts]
 canvas-mcp = "canvas_mcp.__main__:main"
+canvas-mcp-login = "canvas_mcp.browser_login:main"
+
+[project.optional-dependencies]
+browser = [
+    "playwright>=1.56.0",
+]
 
 [build-system]
 requires = ["hatchling"]

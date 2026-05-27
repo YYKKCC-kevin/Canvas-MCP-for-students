@@ -1,6 +1,6 @@
 # Canvas MCP
 
-Local MCP server for Canvas LMS. It is designed like a safer, cleaner cousin of the local Gradescope MCP: API-token authentication, read-only tools by default, and explicit confirmation for anything that can submit work.
+Local MCP server for Canvas LMS. It is designed like a safer, cleaner cousin of the local Gradescope MCP: browser login with Duo support, optional API-token authentication, read-only tools by default, and explicit confirmation for anything that can submit work.
 
 ## What It Can Do
 
@@ -17,31 +17,59 @@ This server helps Codex collect assignment context and prepare work. It does not
 
 For academic work, use the workspace tools to understand requirements, draft your own solution, run checks, and decide what to submit.
 
+If you use browser login mode, keep `.env` local and private. Duo reduces risk, but a plaintext school password is still sensitive.
+
 ## Setup
 
-1. Create a Canvas token in Canvas: `Account -> Settings -> Approved Integrations -> New Access Token`.
-2. Copy `.env.example` to `.env`.
-3. Fill in your Canvas credentials:
-
-```bash
-# Canvas credentials
-CANVAS_BASE_URL=https://canvas.eee.uci.edu
-CANVAS_ACCESS_TOKEN=paste_your_canvas_access_token_here
-```
-
-Canvas username/password are intentionally not used. Canvas API access should use a personal access token, which is safer and works better with campus SSO/2FA.
-
-4. Install and run:
+1. Install the package:
 
 ```bash
 cd canvas-mcp
 python -m venv .venv
 . .venv/bin/activate
-pip install -e .
+pip install -e ".[browser]"
+python -m playwright install chromium
+```
+
+2. Copy `.env.example` to `.env` and fill in your Canvas login:
+
+```bash
+# Canvas credentials
+CANVAS_BASE_URL=https://canvas.eee.uci.edu
+CANVAS_AUTH_MODE=browser
+CANVAS_EMAIL=your_username_or_email
+CANVAS_PASSWORD=your_password
+CANVAS_STORAGE_STATE=.canvas-storage-state.json
+```
+
+For UCI, `CANVAS_EMAIL` can be your UCInetID such as `kuanchey`, or your full campus email if your login page expects that.
+
+3. Log in once through the browser helper:
+
+```bash
+canvas-mcp-login
+```
+
+The helper opens a real browser, fills your username/password, and waits while you approve Duo on your phone. Once Canvas has loaded, return to the terminal and press Enter. It saves a local browser session to `.canvas-storage-state.json`.
+
+4. Run the MCP server:
+
+```bash
 canvas-mcp
 ```
 
-## How To Get `CANVAS_ACCESS_TOKEN`
+If the session expires, run `canvas-mcp-login` again.
+
+## Alternative Token Mode
+
+Canvas API tokens are more reliable than browser sessions. If you prefer token mode, set `CANVAS_ACCESS_TOKEN` in `.env`; it takes priority over browser login:
+
+```bash
+CANVAS_BASE_URL=https://canvas.eee.uci.edu
+CANVAS_ACCESS_TOKEN=paste_your_canvas_access_token_here
+```
+
+To create a token:
 
 1. Open your Canvas website in a browser, for example `https://canvas.eee.uci.edu` for UCI.
 2. Log in normally with your school Canvas/SSO username and password.
@@ -52,7 +80,7 @@ canvas-mcp
 7. Give it a purpose such as `Canvas MCP for Students`.
 8. Copy the generated token immediately and paste it into `.env`.
 
-Do not put your Canvas username or password in `.env`. This MCP uses Canvas's API with an `Authorization: Bearer <token>` header, so the value it needs is the generated access token, not the login password.
+In token mode, this MCP uses Canvas's API with an `Authorization: Bearer <token>` header.
 
 ## Codex MCP Config Snippet
 
@@ -60,12 +88,13 @@ See `mcp-desktop-config-snippet.json`. If your path contains spaces, keep each a
 
 ## Useful Tool Flow
 
-1. `tool_list_courses`
-2. `tool_get_todo_items` or `tool_get_missing_work`
-3. `tool_get_assignment_details`
-4. `tool_prepare_assignment_workspace`
-5. Let Codex work inside the generated folder.
-6. If needed, manually review the result and call `tool_submit_text_assignment(..., confirm_write=True)` or `tool_submit_url_assignment(..., confirm_write=True)`.
+1. Run `canvas-mcp-login` if you are using browser/Duo login mode.
+2. `tool_list_courses`
+3. `tool_get_todo_items` or `tool_get_missing_work`
+4. `tool_get_assignment_details`
+5. `tool_prepare_assignment_workspace`
+6. Let Codex work inside the generated folder.
+7. If needed, manually review the result and call `tool_submit_text_assignment(..., confirm_write=True)` or `tool_submit_url_assignment(..., confirm_write=True)`.
 
 ## Notes
 
@@ -73,7 +102,7 @@ Canvas APIs are paginated. This server follows pagination up to `CANVAS_MAX_PAGE
 
 File downloads are best-effort because instructors can link content through modules, external tools, Google Drive, or locked Canvas files. The workspace tool saves all discovered links in `assignment.md` even when it cannot download them.
 
-Most users only need `CANVAS_BASE_URL` and `CANVAS_ACCESS_TOKEN`. `CANVAS_DOWNLOAD_DIR` and `CANVAS_MAX_PAGES` are optional advanced settings.
+Most users only need `CANVAS_BASE_URL`, `CANVAS_EMAIL`, `CANVAS_PASSWORD`, and `CANVAS_STORAGE_STATE` for browser/Duo login mode. `CANVAS_DOWNLOAD_DIR` and `CANVAS_MAX_PAGES` are optional advanced settings.
 
 ## Canvas API References
 

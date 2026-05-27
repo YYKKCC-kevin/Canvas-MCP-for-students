@@ -1,4 +1,6 @@
 .env
+.canvas-storage-state.json
+.canvas-session.json
 .venv/
 __pycache__/
 *.py[cod]

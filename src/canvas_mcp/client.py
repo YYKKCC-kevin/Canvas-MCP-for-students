@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+import json
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
 
@@ -28,7 +30,8 @@ def _next_link(link_header: str | None) -> str | None:
 @dataclass
 class CanvasClient:
     base_url: str
-    token: str
+    token: str | None = None
+    storage_state_path: str | None = None
     timeout: int = 30
     max_pages: int = field(
         default_factory=lambda: int(os.environ.get("CANVAS_MAX_PAGES", "25"))
@@ -40,11 +43,29 @@ class CanvasClient:
         self.session = requests.Session()
         self.session.headers.update(
             {
-                "Authorization": f"Bearer {self.token}",
                 "Accept": "application/json",
                 "User-Agent": "canvas-mcp/0.1",
             }
         )
+        if self.token:
+            self.session.headers["Authorization"] = f"Bearer {self.token}"
+        elif self.storage_state_path:
+            self._load_storage_state(self.storage_state_path)
+
+    def _load_storage_state(self, storage_state_path: str) -> None:
+        path = Path(storage_state_path).expanduser()
+        state = json.loads(path.read_text(encoding="utf-8"))
+        for cookie in state.get("cookies", []):
+            name = cookie.get("name")
+            value = cookie.get("value")
+            if not name or value is None:
+                continue
+            self.session.cookies.set(
+                name,
+                value,
+                domain=cookie.get("domain"),
+                path=cookie.get("path") or "/",
+            )
 
     def url(self, path_or_url: str) -> str:
         if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
@@ -69,10 +90,21 @@ class CanvasClient:
         return response.json()
 
     def post_form(self, path_or_url: str, data: dict[str, Any]) -> Any:
-        response = self.request("POST", path_or_url, data=data)
+        headers = {}
+        if not self.token:
+            csrf = self._csrf_token()
+            if csrf:
+                headers["X-CSRF-Token"] = csrf
+        response = self.request("POST", path_or_url, data=data, headers=headers or None)
         if not response.content:
             return None
         return response.json()
+
+    def _csrf_token(self) -> str | None:
+        for cookie in self.session.cookies:
+            if "csrf" in cookie.name.lower():
+                return cookie.value
+        return None
 
     def get_paginated(self, path_or_url: str, params: Any | None = None) -> list[Any]:
         results: list[Any] = []
