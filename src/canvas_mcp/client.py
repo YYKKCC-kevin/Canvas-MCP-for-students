@@ -147,10 +147,13 @@ class CanvasClient:
             "size": str(path.stat().st_size),
             "content_type": content_type,
         }
-        init = self.post_form(
+        # Canvas requires multipart/form-data even for the upload-init metadata.
+        init_response = self.request(
+            "POST",
             f"/courses/{course_id}/assignments/{assignment_id}/submissions/self/files",
-            data=init_payload,
+            files={key: (None, value) for key, value in init_payload.items()},
         )
+        init = init_response.json()
         upload_url = init.get("upload_url")
         upload_params = init.get("upload_params") or {}
         if not upload_url:

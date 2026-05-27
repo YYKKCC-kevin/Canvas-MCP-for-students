@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from canvas_mcp.auth import AuthError, get_client
@@ -206,6 +207,15 @@ def submit_file_assignment(
     except AuthError as e:
         return f"Authentication error: {e}"
     except CanvasApiError as e:
+        fallback = _submit_file_assignment_via_browser(
+            course_id,
+            assignment_id,
+            path,
+            comment,
+            e,
+        )
+        if fallback is not None:
+            return fallback
         return f"Canvas API error: {e}"
     except Exception as e:
         return f"Error submitting file assignment: {e}"
@@ -218,3 +228,95 @@ def submit_file_assignment(
         f"- File ID: {file_id}\n"
         f"- File: `{path}`"
     )
+
+
+def _submit_file_assignment_via_browser(
+    course_id: str,
+    assignment_id: str,
+    path: Path,
+    comment: str | None,
+    api_error: CanvasApiError,
+) -> str | None:
+    """Fallback for Canvas instances that reject browser-session API upload init."""
+    storage_state = Path(
+        os.environ.get("CANVAS_STORAGE_STATE", ".canvas-storage-state.json")
+    ).expanduser()
+    if not storage_state.exists():
+        return None
+
+    try:
+        from playwright.sync_api import sync_playwright
+
+        from canvas_mcp.browser_login import _launch_browser, normalize_base_url
+    except ImportError:
+        return None
+
+    base_url = normalize_base_url(os.environ.get("CANVAS_BASE_URL"))
+    assignment_url = f"{base_url}/courses/{course_id}/assignments/{assignment_id}"
+    headless = os.environ.get("CANVAS_SUBMIT_HEADLESS", "true").lower() not in {
+        "0",
+        "false",
+        "no",
+    }
+
+    try:
+        with sync_playwright() as p:
+            browser = _launch_browser(p, headless=headless)
+            context = browser.new_context(storage_state=str(storage_state))
+            page = context.new_page()
+            page.goto(assignment_url, wait_until="networkidle", timeout=60000)
+
+            if page.get_by_role("button", name="Start Assignment").count():
+                page.get_by_role("button", name="Start Assignment").click(timeout=10000)
+            elif page.get_by_role("button", name="New Attempt").count():
+                page.get_by_role("button", name="New Attempt").click(timeout=10000)
+
+            page.locator("input[type=file]").first.set_input_files(str(path), timeout=10000)
+            page.wait_for_timeout(1000)
+
+            if comment:
+                _fill_first_visible_textarea(page, comment)
+
+            page.get_by_role("button", name="Submit Assignment").click(timeout=10000)
+            page.wait_for_load_state("networkidle", timeout=60000)
+            page.wait_for_timeout(1500)
+            body = page.locator("body").inner_text(timeout=10000)
+            context.storage_state(path=str(storage_state))
+            browser.close()
+    except Exception as e:
+        return (
+            f"Canvas API error: {api_error}\n\n"
+            f"Browser fallback also failed: {e}"
+        )
+
+    if "Submitted!" not in body or path.name not in body:
+        return (
+            f"Canvas API error: {api_error}\n\n"
+            "Browser fallback ran, but the page did not show a clear submitted state. "
+            "Check Canvas manually before retrying."
+        )
+
+    note = ""
+    if comment:
+        note = (
+            "\n- Comment: browser fallback attempted to include the comment "
+            "if Canvas exposed a comment box."
+        )
+    return (
+        "## File Submission Saved\n\n"
+        "- Workflow state: submitted\n"
+        "- Submitted via: Canvas browser fallback\n"
+        f"- File: `{path}`"
+        f"{note}"
+    )
+
+
+def _fill_first_visible_textarea(page, value: str) -> bool:
+    for textarea in page.locator("textarea").all():
+        try:
+            if textarea.is_visible(timeout=500):
+                textarea.fill(value)
+                return True
+        except Exception:
+            continue
+    return False
