@@ -22,6 +22,7 @@ from canvas_mcp.tools.learning import (
     generate_hint_pack,
     make_practice_version,
     prepare_homework_help_pack,
+    review_submission_file,
 )
 from canvas_mcp.tools.sources import resolve_assignment_source_from_canvas
 from canvas_mcp.tools.submissions import submit_text_assignment, submit_url_assignment
@@ -197,6 +198,43 @@ def test_learning_draft_checker_reports_missing_sections() -> None:
 
     assert "Problem 2" in result
     assert "not found" in result
+
+
+def test_review_submission_file_reports_ready_when_sections_are_present(tmp_path: Path) -> None:
+    prompt = tmp_path / "hw4_prompt.txt"
+    prompt.write_text(
+        "Problem 1: Compute the risk.\nProblem 2: Derive the SURE formula.\n",
+        encoding="utf-8",
+    )
+    solution = tmp_path / "HW4_solutions.txt"
+    solution.write_text(
+        "HW4 Solutions\n\nProblem 1\nTherefore the risk is derived.\n\n"
+        "Problem 2\nHence the SURE formula follows.\n",
+        encoding="utf-8",
+    )
+
+    result = review_submission_file(
+        "Homework 4",
+        str(solution),
+        assignment_path=str(prompt),
+    )
+
+    assert "Looks ready for submission" in result
+    assert "Expected problems: 1, 2" in result
+
+
+def test_review_submission_file_flags_prompt_only_submission(tmp_path: Path) -> None:
+    prompt = tmp_path / "HW4.txt"
+    prompt.write_text(
+        "Due: Sunday\nPoints 100\nProblem 1: Show that the estimator works.\n"
+        "Problem 2: Compute the risk and derive the formula.\n",
+        encoding="utf-8",
+    )
+
+    result = review_submission_file("Homework 4", str(prompt), assignment_path=str(prompt))
+
+    assert "Needs attention before submission" in result
+    assert "prompt/assignment" in result
 
 
 def test_learning_practice_version_changes_context() -> None:

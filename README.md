@@ -11,8 +11,10 @@ Local MCP server for Canvas LMS. It is designed like a safer, cleaner cousin of 
 - Resolve where the real assignment prompt lives: Canvas files, GitHub, Gradescope, or a user-provided file/link.
 - Prepare a local assignment workspace with `assignment.md` and optionally downloaded linked files.
 - Create safe homework help packs: fill-in templates, hint packs, practice versions, and draft checklists.
+- Review a finished submission file before upload for readability, prompt-vs-solution mistakes, and problem coverage.
 - Optionally bridge to a local `gradescope-mcp` install for Gradescope course/assignment lookup.
 - Submit completed student-authored text, URL, or file-upload assignments only when `confirm_write=True`.
+- Fall back to browser-based Canvas upload when Canvas rejects API file-upload initialization.
 
 ## Safety Model
 
@@ -46,14 +48,15 @@ pip install -e ".[browser,gradescope]"
 
 ```bash
 # Canvas credentials
-CANVAS_BASE_URL=https://canvas.eee.uci.edu
+CANVAS_BASE_URL=your_canvas_address
+# Example: CANVAS_BASE_URL=https://canvas.eee.uci.edu
 CANVAS_AUTH_MODE=browser
 CANVAS_EMAIL=your_username_or_email
 CANVAS_PASSWORD=your_password
 CANVAS_STORAGE_STATE=.canvas-storage-state.json
 ```
 
-For UCI, `CANVAS_EMAIL` can be your UCInetID such as `kuanchey`, or your full campus email if your login page expects that.
+`CANVAS_BASE_URL` should be your school's Canvas website. `CANVAS_EMAIL` can be your username, school email, or whatever your Canvas/SSO login page expects.
 
 3. Log in once through the browser helper:
 
@@ -76,7 +79,8 @@ If the session expires, run `canvas-mcp-login` again.
 Canvas API tokens are more reliable than browser sessions. If you prefer token mode, set `CANVAS_ACCESS_TOKEN` in `.env`; it takes priority over browser login:
 
 ```bash
-CANVAS_BASE_URL=https://canvas.eee.uci.edu
+CANVAS_BASE_URL=your_canvas_address
+# Example: CANVAS_BASE_URL=https://canvas.eee.uci.edu
 CANVAS_ACCESS_TOKEN=paste_your_canvas_access_token_here
 ```
 
@@ -123,11 +127,30 @@ See `mcp-desktop-config-snippet.json`. If your path contains spaces, keep each a
 8. If the source is Gradescope, run `tool_gradescope_bridge_status`, then list Gradescope courses/assignments.
 9. `tool_prepare_homework_help_pack`
 10. Write your own solution in the generated template.
-11. Use `tool_check_my_draft` on your completed draft.
-12. If needed, manually review the result and call `tool_submit_text_assignment(...)`, `tool_submit_url_assignment(...)`, or `tool_submit_file_assignment(...)`.
-13. Submission tools first return a dry run. Re-run with `confirm_write=True` only after you have reviewed the exact completed work.
+11. Use `tool_check_my_draft` while drafting.
+12. Use `tool_review_submission_file(...)` on the final PDF/file before upload.
+13. Run the relevant submission tool once without `confirm_write` for a dry run.
+14. Re-run with `confirm_write=True` only after reviewing the exact file/path/assignment target.
+15. Run `tool_get_my_submission` after submission to confirm Canvas status.
 
 If `tool_resolve_assignment_source` cannot identify the true prompt, it asks the user where the assignment lives instead of guessing.
+
+## Tool Inventory
+
+### Course And Deadline Tools
+
+- `tool_list_courses(...)`: lists active/completed Canvas courses and optional scores.
+- `tool_list_course_assignments(...)`: lists assignments in one course by bucket such as upcoming, overdue, unsubmitted, or all.
+- `tool_get_missing_work(...)`: finds unsubmitted work across courses within a date window.
+- `tool_get_todo_items(...)`: reads Canvas planner/todo items.
+- `tool_get_assignment_details(...)`: fetches one Canvas assignment's deadline, status, instructions, submission type, and links.
+
+### Assignment Source Tools
+
+- `tool_resolve_assignment_source(...)`: decides whether the real prompt is on Canvas, GitHub, Gradescope, a user-provided URL/path, or unclear.
+- `tool_prepare_assignment_workspace(...)`: creates a local folder with `assignment.md` and linked files when the source is safe to use.
+
+The source resolver prevents common mistakes. For example, if Canvas says `Assignment 4` but links `HW2.pdf`, the tool asks the user to confirm instead of silently downloading the wrong file. If Canvas mentions Gradescope, use the Gradescope bridge before preparing or submitting work. If Canvas points to GitHub, inspect/clone that source first.
 
 ## Homework Help Tools
 
@@ -137,13 +160,21 @@ If `tool_resolve_assignment_source` cannot identify the true prompt, it asks the
 - `tool_generate_hint_pack(...)`: gives concepts, formulas to consider, and checklist-style hints.
 - `tool_make_practice_version(...)`: creates a similar but not identical practice plan.
 - `tool_check_my_draft(...)`: checks a student-authored draft for missing sections and common omissions.
+- `tool_review_submission_file(...)`: reviews a finished file for readability, expected problem coverage, and prompt-file-vs-solution-file mistakes before upload.
 - `tool_extract_due_and_submission_target(...)`: summarizes the due date and whether Canvas or Gradescope appears to be the target.
+
+`tool_check_my_draft` and `tool_review_submission_file` are structural checks. They do not guarantee full mathematical correctness, but they help catch dangerous submission mistakes like uploading the prompt instead of the solution.
 
 ## Submission Tools
 
+- `tool_get_my_submission(...)`: checks the current Canvas submission state after upload.
 - `tool_submit_text_assignment(...)`: submits finished text-entry work to Canvas.
 - `tool_submit_url_assignment(...)`: submits a finished URL to Canvas.
 - `tool_submit_file_assignment(...)`: uploads a completed local file and submits it to a Canvas `online_upload` assignment.
+
+All submission tools require an explicit write confirmation. First call them with `confirm_write=False` or omit it to see a no-op dry run. Only call again with `confirm_write=True` after checking the course ID, assignment ID, file path, and submission type.
+
+For file uploads, the tool first tries the Canvas API. Some Canvas instances reject browser-session API upload initialization; in that case, `tool_submit_file_assignment` can fall back to the saved browser session and upload through the Canvas assignment web page. After submitting, always call `tool_get_my_submission` to verify `workflow_state=submitted`.
 
 Canvas assignments that say to submit on Gradescope should be submitted through Gradescope, not with Canvas file upload.
 

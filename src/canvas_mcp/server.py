@@ -25,6 +25,7 @@ from canvas_mcp.tools.learning import (
     generate_hint_pack,
     make_practice_version,
     prepare_homework_help_pack,
+    review_submission_file,
 )
 from canvas_mcp.tools.sources import resolve_assignment_source
 from canvas_mcp.tools.submissions import (
@@ -205,6 +206,27 @@ def tool_check_my_draft(
 
         draft_text = Path(draft_path).expanduser().read_text(encoding="utf-8")
     return check_my_draft(assignment_title, assignment_text, draft_text or "", output_path)
+
+
+@mcp.tool()
+def tool_review_submission_file(
+    assignment_title: str,
+    submission_path: str,
+    assignment_text: str | None = None,
+    assignment_path: str | None = None,
+    output_path: str | None = None,
+) -> str:
+    """Review a finished file for readability and coverage before submission.
+
+    This is a structural/readiness review, not a full correctness proof.
+    """
+    return review_submission_file(
+        assignment_title,
+        submission_path,
+        assignment_text,
+        assignment_path,
+        output_path,
+    )
 
 
 @mcp.tool()

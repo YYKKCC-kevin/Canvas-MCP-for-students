@@ -179,6 +179,97 @@ def check_my_draft(
     return result
 
 
+def review_submission_file(
+    assignment_title: str,
+    submission_path: str,
+    assignment_text: str | None = None,
+    assignment_path: str | None = None,
+    output_path: str | None = None,
+) -> str:
+    """Review a finished submission file for structural readiness before upload."""
+    path = Path(submission_path).expanduser()
+    lines = [
+        "## Submission File Review",
+        "",
+        f"- Assignment: {assignment_title.strip() or 'Canvas Assignment'}",
+        f"- Submission file: `{path}`",
+        "- Scope: structural/readiness review, not a full mathematical correctness proof.",
+        "",
+    ]
+    issues: list[str] = []
+    warnings: list[str] = []
+
+    if not path.exists() or not path.is_file():
+        issues.append("Submission file does not exist or is not a regular file.")
+        return _finish_submission_review(lines, issues, warnings, output_path)
+
+    submission_text = _file_text(path)
+    if not submission_text:
+        issues.append("Could not extract readable text from the submission file.")
+    else:
+        lines.extend(
+            [
+                "### File Readability",
+                f"- Extracted text length: {len(submission_text)} characters.",
+                f"- Detected title/first line: {_first_nonempty_line(submission_text) or '(none)'}",
+                "",
+            ]
+        )
+
+    prompt_text = _plain(assignment_text)
+    if assignment_path:
+        prompt_path = Path(assignment_path).expanduser()
+        prompt_from_file = _file_text(prompt_path)
+        if prompt_from_file:
+            prompt_text = f"{prompt_text}\n\n{prompt_from_file}".strip()
+        else:
+            warnings.append(f"Could not extract readable text from assignment file `{prompt_path}`.")
+
+    expected_numbers = _problem_numbers(prompt_text)
+    found_numbers = _problem_numbers(submission_text)
+    if expected_numbers:
+        missing = [number for number in expected_numbers if number not in found_numbers]
+        lines.extend(
+            [
+                "### Problem Coverage",
+                f"- Expected problems: {', '.join(expected_numbers)}",
+                f"- Found solution sections: {', '.join(found_numbers) or '(none)'}",
+                "",
+            ]
+        )
+        if missing:
+            issues.append(f"Missing visible solution section(s): {', '.join(missing)}.")
+    elif submission_text:
+        warnings.append(
+            "No expected problem numbers were available; coverage was checked only heuristically."
+        )
+
+    if submission_text and _looks_prompt_only(submission_text, prompt_text, path.name):
+        issues.append(
+            "Submission may be the prompt/assignment PDF rather than a completed solution."
+        )
+    if submission_text and not _looks_like_solution(submission_text, path.name):
+        warnings.append(
+            "Submission does not clearly label itself as a solution; verify this is intentional."
+        )
+
+    if prompt_text and submission_text:
+        overlap = _line_overlap_ratio(prompt_text, submission_text)
+        lines.extend(
+            [
+                "### Prompt Overlap",
+                f"- Approximate prompt-line overlap: {overlap:.0%}",
+                "",
+            ]
+        )
+        if overlap > 0.75:
+            issues.append(
+                "Submission text overlaps heavily with the prompt, which can indicate the prompt file was selected."
+            )
+
+    return _finish_submission_review(lines, issues, warnings, output_path)
+
+
 def make_practice_version(
     assignment_title: str,
     assignment_text: str | None,
@@ -391,3 +482,104 @@ def _pdf_text(path: Path) -> str:
     if result.returncode != 0:
         return ""
     return result.stdout.strip()
+
+
+def _file_text(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        return _pdf_text(path)
+    if suffix in {".txt", ".md", ".tex", ".rmd"}:
+        try:
+            return path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            return ""
+    return ""
+
+
+def _problem_numbers(text: str | None) -> list[str]:
+    normalized = _plain(text)
+    if not normalized:
+        return []
+    found = set(re.findall(r"(?im)^\s*(?:problem|question)\s+(\d+)\b", normalized))
+    found.update(re.findall(r"(?m)^\s*(\d+)[.)]\s+", normalized))
+    return sorted(found, key=lambda value: int(value))
+
+
+def _first_nonempty_line(text: str) -> str:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped:
+            return stripped[:160]
+    return ""
+
+
+def _looks_like_solution(text: str, filename: str) -> bool:
+    lower = f"{filename}\n{text}".lower()
+    solution_markers = [
+        "solution",
+        "solutions",
+        "answer",
+        "therefore",
+        "hence",
+        "thus",
+        "we have",
+        "boxed",
+    ]
+    return any(marker in lower for marker in solution_markers)
+
+
+def _looks_prompt_only(submission_text: str, prompt_text: str, filename: str) -> bool:
+    lower = submission_text.lower()
+    prompt_markers = ["due:", "points", "show that", "derive", "compute"]
+    solution_like = _looks_like_solution(submission_text, filename)
+    if prompt_text and _line_overlap_ratio(prompt_text, submission_text) > 0.85:
+        return True
+    return not solution_like and sum(marker in lower for marker in prompt_markers) >= 3
+
+
+def _line_overlap_ratio(prompt_text: str, submission_text: str) -> float:
+    prompt_lines = {
+        re.sub(r"\s+", " ", line).strip().lower()
+        for line in prompt_text.splitlines()
+        if len(re.sub(r"\s+", " ", line).strip()) >= 25
+    }
+    submission_lines = {
+        re.sub(r"\s+", " ", line).strip().lower()
+        for line in submission_text.splitlines()
+        if len(re.sub(r"\s+", " ", line).strip()) >= 25
+    }
+    if not prompt_lines:
+        return 0.0
+    return len(prompt_lines & submission_lines) / len(prompt_lines)
+
+
+def _finish_submission_review(
+    lines: list[str],
+    issues: list[str],
+    warnings: list[str],
+    output_path: str | None,
+) -> str:
+    if issues:
+        verdict = "Needs attention before submission"
+    elif warnings:
+        verdict = "Looks mostly ready, with warnings"
+    else:
+        verdict = "Looks ready for submission"
+    lines.extend(["### Verdict", f"- {verdict}", ""])
+    if issues:
+        lines.append("### Blocking Issues")
+        lines.extend(f"- {issue}" for issue in issues)
+        lines.append("")
+    if warnings:
+        lines.append("### Warnings")
+        lines.extend(f"- {warning}" for warning in warnings)
+        lines.append("")
+    lines.append(
+        "This review checks file/readability/coverage signals. It does not guarantee "
+        "that every mathematical step or final answer is correct."
+    )
+    result = "\n".join(lines).rstrip() + "\n"
+    if output_path:
+        Path(output_path).expanduser().write_text(result, encoding="utf-8")
+        return f"Submission review written to `{Path(output_path).expanduser()}`."
+    return result
