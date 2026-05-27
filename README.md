@@ -29,7 +29,7 @@ For academic work, use the workspace tools to understand requirements, draft you
 
 If you use browser login mode, keep `.env` local and private. Duo reduces risk, but a plaintext school password is still sensitive.
 
-The homework-help tools are designed for learning support. They intentionally create scaffolds, hints, practice prompts, and draft checks rather than submit-ready solutions.
+The homework-help tools support coursework workflows, including assignment context gathering, structured drafting, targeted help packs, practice prompts, draft checks, and submission preparation.
 
 ## Setup
 
@@ -178,8 +178,8 @@ The source resolver prevents common mistakes. For example, if Canvas says `Assig
 
 - `tool_resolve_assignment_source(course_id, assignment_id)`: checks whether the actual prompt is on Canvas, GitHub, Gradescope, or needs user clarification.
 - `tool_prepare_homework_help_pack(course_id, assignment_id)`: creates `homework_template.md`, `hint_pack.md`, `practice_version.md`, and `submission_target.md` beside the assignment files.
-- `tool_create_homework_template(...)`: creates a blank, fill-in structure by problem.
-- `tool_generate_hint_pack(...)`: gives concepts, formulas to consider, and checklist-style hints.
+- `tool_create_homework_template(...)`: creates a structured, editable workspace by problem.
+- `tool_generate_hint_pack(...)`: gives concepts, formulas to consider, checklist-style checks, and drafting cues.
 - `tool_make_practice_version(...)`: creates a similar but not identical practice plan.
 - `tool_check_my_draft(...)`: checks a student-authored draft for missing sections and common omissions.
 - `tool_review_solution_for_chat(...)`: prepares a review artifact and returns a user-facing chat summary plus automatically detected review signals. Use this when the user expects the assistant to say what is inaccurate and what should be changed in the conversation, not just where the artifact was saved.

@@ -356,13 +356,13 @@ def test_learning_template_deduplicates_and_handles_pdf_question_noise() -> None
     assert "## Problem 3" in result
 
 
-def test_learning_hint_pack_is_not_answer_pack() -> None:
+def test_learning_hint_pack_includes_method_support() -> None:
     assignment_text = "1. Use summary statistics to calculate least squares estimates."
 
     result = generate_hint_pack("Homework 6", assignment_text)
 
-    assert "Hint Pack" in result
-    assert "not final answers" in result
+    assert "Homework Support Pack" in result
+    assert "plan, draft, verify, and improve" in result
     assert "least squares" in result.lower()
 
 

@@ -1,4 +1,4 @@
-"""Learning-assistance tools that avoid generating submit-ready answers."""
+"""Coursework assistance tools for organizing, drafting, and reviewing work."""
 
 from __future__ import annotations
 
@@ -47,13 +47,13 @@ def create_homework_template(
     assignment_text: str | None = None,
     output_path: str | None = None,
 ) -> str:
-    """Create a student-fillable homework template without solving the work."""
+    """Create a structured homework workspace for student drafting."""
     title = assignment_title.strip() or "Canvas Homework"
     lines = [
         f"# {title} Template",
         "",
-        "This template intentionally leaves solution work blank.",
-        "Use it to organize your own derivations, calculations, and explanations.",
+        "This template organizes the assignment into editable solution sections.",
+        "Use it to draft derivations, calculations, explanations, and final responses.",
         "",
     ]
     for number, _body in _questions(assignment_text):
@@ -88,12 +88,12 @@ def generate_hint_pack(
     assignment_text: str | None,
     output_path: str | None = None,
 ) -> str:
-    """Generate conceptual hints and checklists, not final answers."""
+    """Generate a homework support pack with concepts, steps, and checks."""
     title = assignment_title.strip() or "Canvas Homework"
     lines = [
-        f"# {title} Hint Pack",
+        f"# {title} Homework Support Pack",
         "",
-        "These are study hints, not final answers. Use them to guide your own work.",
+        "Use this pack to plan, draft, verify, and improve your work according to your course policy.",
         "",
     ]
     for number, body in _questions(assignment_text):
@@ -762,7 +762,7 @@ def prepare_homework_help_pack(
     output_dir: str | None = None,
     allow_mismatched_files: bool = False,
 ) -> str:
-    """Prepare a local folder with safe homework support artifacts."""
+    """Prepare a local folder with homework support artifacts."""
     workspace_result = prepare_assignment_workspace(
         course_id,
         assignment_id,
@@ -823,7 +823,7 @@ def prepare_homework_help_pack(
         f"- Hint pack: `{hints_path}`\n"
         f"- Practice version: `{practice_path}`\n"
         f"- Submission target: `{target_path}`\n\n"
-        "These files are designed to support student-authored work, not replace it."
+        "These files support planning, drafting, review, and submission preparation."
     )
 
 

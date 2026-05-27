@@ -247,10 +247,7 @@ def tool_prepare_homework_help_pack(
     output_dir: str | None = None,
     allow_mismatched_files: bool = False,
 ) -> str:
-    """Create template, hints, practice prompt, and submission-target files.
-
-    This tool intentionally does not generate submit-ready homework answers.
-    """
+    """Create template, support, practice, and submission-target files."""
     return prepare_homework_help_pack(
         course_id, assignment_id, output_dir, allow_mismatched_files
     )
@@ -262,7 +259,7 @@ def tool_create_homework_template(
     assignment_text: str | None = None,
     output_path: str | None = None,
 ) -> str:
-    """Create a fill-in homework template without solving the assignment."""
+    """Create a structured homework workspace for student drafting."""
     return create_homework_template(assignment_title, assignment_text, output_path)
 
 
@@ -272,7 +269,7 @@ def tool_generate_hint_pack(
     assignment_text: str,
     output_path: str | None = None,
 ) -> str:
-    """Generate conceptual hints and checklists, not final answers."""
+    """Generate a homework support pack with concepts, steps, and checks."""
     return generate_hint_pack(assignment_title, assignment_text, output_path)
 
 
