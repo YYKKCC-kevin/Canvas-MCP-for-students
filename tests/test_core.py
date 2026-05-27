@@ -23,6 +23,7 @@ from canvas_mcp.tools.learning import (
     make_practice_version,
     prepare_homework_help_pack,
     review_submission_file,
+    review_solution_correctness,
 )
 from canvas_mcp.tools.sources import resolve_assignment_source_from_canvas
 from canvas_mcp.tools.submissions import submit_text_assignment, submit_url_assignment
@@ -235,6 +236,58 @@ def test_review_submission_file_flags_prompt_only_submission(tmp_path: Path) -> 
 
     assert "Needs attention before submission" in result
     assert "prompt/assignment" in result
+
+
+def test_review_solution_correctness_warns_without_reference(tmp_path: Path) -> None:
+    solution = tmp_path / "solution.txt"
+    solution.write_text("Problem 1\nTherefore the estimator is unbiased.\n", encoding="utf-8")
+
+    result = review_solution_correctness(
+        "Homework 4",
+        solution_path=str(solution),
+        assignment_text="Problem 1: Show that the estimator is unbiased.",
+    )
+
+    assert "Confidence: low" in result
+    assert "No reference answer or rubric was provided" in result
+
+
+def test_review_solution_correctness_flags_reference_mismatch(tmp_path: Path) -> None:
+    solution = tmp_path / "solution.txt"
+    reference = tmp_path / "reference.txt"
+    solution.write_text("Problem 1\nFinal answer: R(theta, delta_P)=1/(12n).\n", encoding="utf-8")
+    reference.write_text(
+        "Problem 1\nFinal answer: R(theta, delta_P)=1/(2(n+1)(n+2)).\n",
+        encoding="utf-8",
+    )
+
+    result = review_solution_correctness(
+        "Homework 4",
+        solution_path=str(solution),
+        assignment_text="Problem 1: Compute the risk.",
+        reference_path=str(reference),
+    )
+
+    assert "Needs correctness review" in result
+    assert "Missing or mismatched reference answer" in result
+
+
+def test_review_solution_correctness_passes_matching_reference(tmp_path: Path) -> None:
+    solution = tmp_path / "solution.txt"
+    reference = tmp_path / "reference.txt"
+    text = "Problem 1\nFinal answer: R(theta, delta_P)=1/(2(n+1)(n+2)).\n"
+    solution.write_text(text, encoding="utf-8")
+    reference.write_text(text, encoding="utf-8")
+
+    result = review_solution_correctness(
+        "Homework 4",
+        solution_path=str(solution),
+        assignment_text="Problem 1: Compute the risk.",
+        reference_path=str(reference),
+    )
+
+    assert "No obvious correctness issues found" in result
+    assert "Confidence: medium" in result
 
 
 def test_learning_practice_version_changes_context() -> None:

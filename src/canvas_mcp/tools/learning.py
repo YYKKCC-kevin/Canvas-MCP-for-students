@@ -270,6 +270,73 @@ def review_submission_file(
     return _finish_submission_review(lines, issues, warnings, output_path)
 
 
+def review_solution_correctness(
+    assignment_title: str,
+    solution_path: str | None = None,
+    solution_text: str | None = None,
+    assignment_text: str | None = None,
+    assignment_path: str | None = None,
+    reference_text: str | None = None,
+    reference_path: str | None = None,
+    rubric_text: str | None = None,
+    output_path: str | None = None,
+) -> str:
+    """Review a student solution for likely correctness issues."""
+    solution = _collect_text(solution_text, solution_path)
+    prompt = _collect_text(assignment_text, assignment_path)
+    reference = _collect_text(reference_text, reference_path)
+    rubric = _plain(rubric_text)
+
+    lines = [
+        "## Solution Correctness Review",
+        "",
+        f"- Assignment: {assignment_title.strip() or 'Canvas Assignment'}",
+        "- Scope: correctness-oriented review, not an official grade or guarantee.",
+        "",
+    ]
+    issues: list[str] = []
+    warnings: list[str] = []
+
+    if not solution:
+        issues.append("No readable solution text was provided.")
+        return _finish_correctness_review(lines, issues, warnings, "low", output_path)
+
+    expected_numbers = _problem_numbers(prompt or reference)
+    solution_numbers = _problem_numbers(solution)
+    if expected_numbers:
+        missing = [number for number in expected_numbers if number not in solution_numbers]
+        lines.extend(
+            [
+                "### Problem Coverage",
+                f"- Expected problems: {', '.join(expected_numbers)}",
+                f"- Found solution sections: {', '.join(solution_numbers) or '(none)'}",
+                "",
+            ]
+        )
+        if missing:
+            issues.append(f"Missing solution section(s): {', '.join(missing)}.")
+    else:
+        warnings.append("No problem numbers were available from the prompt/reference.")
+
+    if not reference and not rubric:
+        warnings.append(
+            "No reference answer or rubric was provided, so this can only perform "
+            "low-confidence internal consistency checks."
+        )
+        _add_internal_correctness_checks(solution, warnings)
+        return _finish_correctness_review(lines, issues, warnings, "low", output_path)
+
+    reference_issues = _reference_answer_checks(solution, reference)
+    issues.extend(reference_issues)
+    if reference:
+        lines.extend(_reference_overlap_section(solution, reference))
+    if rubric:
+        warnings.extend(_rubric_term_checks(solution, rubric))
+
+    confidence = "medium" if reference else "low"
+    return _finish_correctness_review(lines, issues, warnings, confidence, output_path)
+
+
 def make_practice_version(
     assignment_title: str,
     assignment_text: str | None,
@@ -496,6 +563,19 @@ def _file_text(path: Path) -> str:
     return ""
 
 
+def _collect_text(inline_text: str | None, file_path: str | None) -> str:
+    chunks = []
+    inline = _plain(inline_text)
+    if inline:
+        chunks.append(inline)
+    if file_path:
+        path = Path(file_path).expanduser()
+        text = _file_text(path)
+        if text:
+            chunks.append(text)
+    return "\n\n".join(chunks).strip()
+
+
 def _problem_numbers(text: str | None) -> list[str]:
     normalized = _plain(text)
     if not normalized:
@@ -553,6 +633,143 @@ def _line_overlap_ratio(prompt_text: str, submission_text: str) -> float:
     return len(prompt_lines & submission_lines) / len(prompt_lines)
 
 
+def _add_internal_correctness_checks(solution: str, warnings: list[str]) -> None:
+    lower = solution.lower()
+    if "therefore" not in lower and "hence" not in lower and "thus" not in lower:
+        warnings.append("Solution has few conclusion markers; check final answers are stated clearly.")
+    if "=" not in solution and any(word in lower for word in ["compute", "derive", "risk", "estimate"]):
+        warnings.append("Solution contains few equations; verify calculations are shown.")
+    if any(marker in lower for marker in ["todo", "???", "tbd", "unfinished"]):
+        warnings.append("Solution contains unfinished-work markers such as TODO/TBD/???.")
+
+
+def _reference_answer_checks(solution: str, reference: str) -> list[str]:
+    if not reference:
+        return []
+    issues = []
+    solution_sections = _sections_by_problem(solution)
+    reference_sections = _sections_by_problem(reference)
+    if not reference_sections:
+        reference_sections = {"all": reference}
+        solution_sections = {"all": solution}
+
+    for number, reference_section in reference_sections.items():
+        solution_section = solution_sections.get(number, "")
+        if not solution_section:
+            issues.append(f"Problem {number}: no matching solution section found.")
+            continue
+        missing_lines = _missing_reference_answer_lines(solution_section, reference_section)
+        if missing_lines:
+            preview = "; ".join(missing_lines[:3])
+            label = f"Problem {number}" if number != "all" else "Solution"
+            issues.append(
+                f"{label}: Missing or mismatched reference answer line(s): {preview}"
+            )
+    return issues
+
+
+def _reference_overlap_section(solution: str, reference: str) -> list[str]:
+    solution_terms = _important_terms(solution)
+    reference_terms = _important_terms(reference)
+    if not reference_terms:
+        return []
+    overlap = sorted(solution_terms & reference_terms)
+    ratio = len(overlap) / len(reference_terms)
+    return [
+        "### Reference Comparison",
+        f"- Important reference terms matched: {len(overlap)}/{len(reference_terms)} ({ratio:.0%}).",
+        f"- Matched sample: {', '.join(overlap[:12]) or '(none)'}",
+        "",
+    ]
+
+
+def _rubric_term_checks(solution: str, rubric: str) -> list[str]:
+    rubric_terms = _important_terms(rubric)
+    solution_terms = _important_terms(solution)
+    missing = sorted(rubric_terms - solution_terms)
+    if not missing:
+        return []
+    return [
+        "Rubric terms not clearly present in the solution: "
+        + ", ".join(missing[:12])
+        + "."
+    ]
+
+
+def _sections_by_problem(text: str) -> dict[str, str]:
+    matches = list(
+        re.finditer(r"(?im)^\s*(?:problem|question)\s+(\d+)\b.*$", text)
+    )
+    if not matches:
+        return {}
+    sections: dict[str, str] = {}
+    for index, match in enumerate(matches):
+        start = match.start()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        sections[match.group(1)] = text[start:end].strip()
+    return sections
+
+
+def _missing_reference_answer_lines(solution_section: str, reference_section: str) -> list[str]:
+    solution_normalized = _normalize_math_text(solution_section)
+    missing = []
+    for line in _answer_like_lines(reference_section):
+        normalized_line = _normalize_math_text(line)
+        if normalized_line and normalized_line not in solution_normalized:
+            missing.append(line.strip()[:180])
+    return missing
+
+
+def _answer_like_lines(text: str) -> list[str]:
+    lines = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        lower = line.lower()
+        if len(line) < 8:
+            continue
+        if any(marker in lower for marker in ["final", "answer", "boxed"]):
+            lines.append(line)
+            continue
+        if "=" in line and any(char.isdigit() for char in line):
+            lines.append(line)
+    return lines[:20]
+
+
+def _normalize_math_text(text: str) -> str:
+    text = text.lower()
+    text = re.sub(r"\\[a-zA-Z]+", "", text)
+    text = re.sub(r"[^a-z0-9=+\-*/().,_{}]", "", text)
+    return text
+
+
+def _important_terms(text: str) -> set[str]:
+    stop = {
+        "problem",
+        "solution",
+        "therefore",
+        "hence",
+        "where",
+        "using",
+        "show",
+        "derive",
+        "compute",
+        "final",
+        "answer",
+        "with",
+        "that",
+        "this",
+        "from",
+        "have",
+    }
+    words = {
+        word.lower()
+        for word in re.findall(r"[A-Za-z][A-Za-z0-9_]{3,}", text)
+        if word.lower() not in stop
+    }
+    formulas = set(re.findall(r"[A-Za-z]\([^)]{1,40}\)\s*=\s*[^\s,;]{2,80}", text))
+    return words | {formula.lower() for formula in formulas}
+
+
 def _finish_submission_review(
     lines: list[str],
     issues: list[str],
@@ -582,4 +799,38 @@ def _finish_submission_review(
     if output_path:
         Path(output_path).expanduser().write_text(result, encoding="utf-8")
         return f"Submission review written to `{Path(output_path).expanduser()}`."
+    return result
+
+
+def _finish_correctness_review(
+    lines: list[str],
+    issues: list[str],
+    warnings: list[str],
+    confidence: str,
+    output_path: str | None,
+) -> str:
+    if issues:
+        verdict = "Needs correctness review"
+    elif warnings:
+        verdict = "No obvious correctness issues found, but review warnings remain"
+    else:
+        verdict = "No obvious correctness issues found"
+    lines.extend(["### Verdict", f"- {verdict}", f"- Confidence: {confidence}", ""])
+    if issues:
+        lines.append("### Possible Correctness Issues")
+        lines.extend(f"- {issue}" for issue in issues)
+        lines.append("")
+    if warnings:
+        lines.append("### Warnings")
+        lines.extend(f"- {warning}" for warning in warnings)
+        lines.append("")
+    lines.append(
+        "This tool can catch missing sections, missing reference conclusions, and "
+        "surface-level mismatches. It is not an official grade and cannot guarantee "
+        "that every proof step is correct."
+    )
+    result = "\n".join(lines).rstrip() + "\n"
+    if output_path:
+        Path(output_path).expanduser().write_text(result, encoding="utf-8")
+        return f"Correctness review written to `{Path(output_path).expanduser()}`."
     return result
