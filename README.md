@@ -210,7 +210,7 @@ Canvas assignments that say to submit on Gradescope should be submitted through 
 ## Credits
 
 - `YYKKCC-kevin`: project owner and maintainer.
-- `Codex`: implementation assistant for Canvas MCP workflows.
+- [`Codex`](https://github.com/codex): implementation assistant for Canvas MCP workflows.
 
 ## Notes
 
