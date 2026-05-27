@@ -21,12 +21,15 @@ For academic work, use the workspace tools to understand requirements, draft you
 
 1. Create a Canvas token in Canvas: `Account -> Settings -> Approved Integrations -> New Access Token`.
 2. Copy `.env.example` to `.env`.
-3. Set:
+3. Fill in your Canvas credentials:
 
 ```bash
+# Canvas credentials
 CANVAS_BASE_URL=https://canvas.eee.uci.edu
-CANVAS_ACCESS_TOKEN=...
+CANVAS_ACCESS_TOKEN=your_canvas_access_token
 ```
+
+Canvas username/password are intentionally not used. Canvas API access should use a personal access token, which is safer and works better with campus SSO/2FA.
 
 4. Install and run:
 
@@ -56,6 +59,8 @@ See `mcp-desktop-config-snippet.json`. If your path contains spaces, keep each a
 Canvas APIs are paginated. This server follows pagination up to `CANVAS_MAX_PAGES`.
 
 File downloads are best-effort because instructors can link content through modules, external tools, Google Drive, or locked Canvas files. The workspace tool saves all discovered links in `assignment.md` even when it cannot download them.
+
+Most users only need `CANVAS_BASE_URL` and `CANVAS_ACCESS_TOKEN`. `CANVAS_DOWNLOAD_DIR` and `CANVAS_MAX_PAGES` are optional advanced settings.
 
 ## Canvas API References
 
