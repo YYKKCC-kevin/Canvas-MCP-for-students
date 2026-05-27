@@ -207,6 +207,11 @@ Canvas assignments that say to submit on Gradescope should be submitted through 
 - `tool_gradescope_list_assignments(...)`: lists assignments for one Gradescope course.
 - `tool_gradescope_get_assignment_details(...)`: reads one Gradescope assignment's details.
 
+## Credits
+
+- `YYKKCC-kevin`: project owner and maintainer.
+- `Codex`: implementation assistant for Canvas MCP workflows.
+
 ## Notes
 
 Canvas APIs are paginated. This server follows pagination up to `CANVAS_MAX_PAGES`.
