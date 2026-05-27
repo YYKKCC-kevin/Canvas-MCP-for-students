@@ -504,6 +504,132 @@ def review_solution_for_chat(
     )
 
 
+def prepare_multi_agent_review_packet(
+    assignment_title: str,
+    solution_path: str | None = None,
+    solution_text: str | None = None,
+    assignment_text: str | None = None,
+    assignment_path: str | None = None,
+    reference_text: str | None = None,
+    reference_path: str | None = None,
+    rubric_text: str | None = None,
+    output_dir: str | None = None,
+) -> str:
+    """Prepare solver/reviewer/resolution packets for host-agent orchestration."""
+    solution = _collect_text(solution_text, solution_path)
+    prompt = _collect_text(assignment_text, assignment_path)
+    reference = _collect_text(reference_text, reference_path)
+    rubric = _plain(rubric_text)
+
+    base_dir = Path(output_dir or "canvas-mcp-reviews").expanduser()
+    if not output_dir and DEFAULT_DOWNLOAD_DIR:
+        base_dir = Path(DEFAULT_DOWNLOAD_DIR).expanduser() / "reviews"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = (
+        base_dir / f"{_safe_slug(assignment_title or 'assignment')}-multi-agent-review.md"
+    )
+
+    reference_status = "user-provided reference answer" if reference else "missing"
+    if rubric and not reference:
+        reference_status = "rubric-only fallback"
+    elif reference and rubric:
+        reference_status = "user-provided reference answer plus rubric"
+
+    title = assignment_title.strip() or "Canvas Assignment"
+    lines = [
+        f"# Multi-Agent Review Packet: {title}",
+        "",
+        "This packet is for a host assistant such as Codex or Claude that can run multiple agents.",
+        "MCP cannot directly spawn Codex/Claude subagents; it prepares the evidence and instructions.",
+        "",
+        "## Review Contract",
+        "",
+        f"- Assignment title: {title}",
+        f"- Solution source: `{solution_path}`" if solution_path else "- Solution source: inline text",
+        f"- Prompt source: `{assignment_path}`" if assignment_path else "- Prompt source: inline text or missing",
+        f"- Reference source: {reference_status}",
+        "- Goal: catch correctness errors before the user submits completed work.",
+        "- The host assistant must report concrete issues in chat, not only return this artifact path.",
+        "",
+        "## Host-Agent Workflow",
+        "",
+        "1. Read the assignment prompt, student solution, optional reference, and rubric below.",
+        "2. Start a solver agent to independently solve or verify the work.",
+        "3. Start a reviewer agent with the same context but without telling it to defer to the solver.",
+        "4. Compare the solver and reviewer outputs problem by problem.",
+        "5. If they agree, give the user a final consensus with confidence and any caveats.",
+        "6. If they disagree, send the disputed items back to the solver for revision or defense.",
+        "7. After the solver responds, make a final decision and tell the user exactly what to change.",
+        "8. If confidence remains low, ask for a reference answer, rubric, instructor note, or human review before submission.",
+        "",
+        "## Solver Agent Packet",
+        "",
+        "You are the solver/checker. Derive the expected answer independently from the prompt.",
+        "Use the reference/rubric if provided, but do not assume the student's answer is correct.",
+        "Return a concise table with problem, expected result, student result, status, and fix if needed.",
+        "Show enough reasoning to make arithmetic, definitions, and conclusion checks auditable.",
+        "",
+        "## Reviewer Agent Packet",
+        "",
+        "You are the independent reviewer. Be skeptical of arithmetic, rounding, critical values, signs, units, and wording.",
+        "Do not simply agree with the solver. Identify any answer you would change and explain why.",
+        "If an answer is acceptable under multiple conventions, state the convention and preferred final form.",
+        "Return disputed items first, then accepted items.",
+        "",
+        "## Disagreement Resolution Packet",
+        "",
+        "If the reviewer disagrees with the solver, send the disputed items back to the solver with the reviewer evidence.",
+        "The solver must either revise the final answer or defend the original answer with a clear convention/source.",
+        "The host assistant then decides the final answer and tells the user the exact edit to make.",
+        "",
+        "## Required Final Chat Output",
+        "",
+        "- Overall recommendation: submit / revise first / cannot determine.",
+        "- Accepted answers: list items that both agents accept.",
+        "- Disputed or revised answers: list original answer, reviewer concern, final consensus, and exact replacement.",
+        "- Confidence: high / medium / low, with one short reason.",
+        "- Submission note: remind the user no submission should be made unless they explicitly confirm.",
+        "",
+        "## Assignment Prompt",
+        "",
+        prompt or "_No prompt text was provided. Ask the user for the assignment prompt before review._",
+        "",
+        "## Student Solution",
+        "",
+        solution or "_No solution text was provided._",
+        "",
+        "## Reference Answer",
+        "",
+        reference or "_No reference answer provided. Use independent derivation and lower confidence._",
+        "",
+        "## Rubric / Grading Notes",
+        "",
+        rubric or "_No rubric provided._",
+    ]
+    artifact_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+    readiness = []
+    if not prompt:
+        readiness.append("Prompt text is missing; the host assistant should ask for it.")
+    if not solution:
+        readiness.append("Student solution text is missing or unreadable.")
+    if not reference and not rubric:
+        readiness.append(
+            "No reference answer or rubric is available; use independent derivation and report confidence honestly."
+        )
+    if not readiness:
+        readiness.append("Prompt and solution context are present.")
+
+    return (
+        "## Multi-Agent Review Packet Prepared\n\n"
+        f"- Artifact: `{artifact_path}`\n"
+        "- Host-agent workflow required: spawn or use a solver agent, spawn an independent reviewer agent, then resolve disagreements before answering the user.\n"
+        "- Important: MCP cannot directly spawn Codex/Claude subagents; the calling assistant must run the agents and report the consensus in chat.\n\n"
+        "### Readiness Notes\n"
+        + "\n".join(f"- {item}" for item in readiness)
+    )
+
+
 def _chat_review_summary(quick_review: str) -> str:
     issues = _section_bullets(quick_review, "Possible Correctness Issues")
     warnings = _section_bullets(quick_review, "Warnings")

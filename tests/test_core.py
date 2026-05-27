@@ -21,6 +21,7 @@ from canvas_mcp.tools.learning import (
     extract_due_and_submission_target,
     generate_hint_pack,
     make_practice_version,
+    prepare_multi_agent_review_packet,
     prepare_solution_review_artifact,
     prepare_homework_help_pack,
     review_submission_file,
@@ -345,6 +346,26 @@ def test_review_solution_for_chat_returns_artifact_and_detected_signals(tmp_path
     assert "Missing or mismatched reference answer" in result
     assert "Required Follow-Up In The Conversation" in result
     assert "do not only return the artifact path" in result
+
+
+def test_prepare_multi_agent_review_packet_guides_consensus_workflow(tmp_path: Path) -> None:
+    result = prepare_multi_agent_review_packet(
+        "Homework 5",
+        solution_text="Problem 1\nFinal answer: 1.52 to 6.48.",
+        assignment_text="Problem 1: Compute a 99% confidence interval.",
+        output_dir=str(tmp_path),
+    )
+
+    artifact = tmp_path / "Homework-5-multi-agent-review.md"
+    text = artifact.read_text(encoding="utf-8")
+
+    assert "Multi-Agent Review Packet Prepared" in result
+    assert "Host-agent workflow required" in result
+    assert "MCP cannot directly spawn Codex/Claude subagents" in result
+    assert "Solver Agent Packet" in text
+    assert "Reviewer Agent Packet" in text
+    assert "Disagreement Resolution Packet" in text
+    assert "send the disputed items back to the solver" in text
 
 
 def test_learning_practice_version_changes_context() -> None:

@@ -13,6 +13,7 @@ Local MCP server for Canvas LMS. It is designed like a safer, cleaner cousin of 
 - Create safe homework help packs: fill-in templates, hint packs, practice versions, and draft checklists.
 - Review a finished submission file before upload for readability, prompt-vs-solution mistakes, and problem coverage.
 - Prepare Gradescope-style correctness review artifacts so an agent can judge solutions even when no reference answer is provided.
+- Prepare multi-agent review packets for solver-agent, reviewer-agent, and disagreement-resolution workflows.
 - Run quick correctness checks when a reference answer or rubric is available.
 - Optionally bridge to a local `gradescope-mcp` install for Gradescope course/assignment lookup.
 - Submit completed student-authored text, URL, or file-upload assignments only when `confirm_write=True`.
@@ -135,12 +136,13 @@ See `mcp-desktop-config-snippet.json`. If your path contains spaces, keep each a
 10. Write your own solution in the generated template.
 11. Use `tool_check_my_draft` while drafting.
 12. Use `tool_review_solution_for_chat(...)` when you want the assistant to tell the user directly what is inaccurate or needs revision.
-13. Use `tool_prepare_solution_review_artifact(...)` for a reusable deeper review artifact, especially if no reference answer exists.
-14. Optionally use `tool_review_solution_correctness(...)` for faster reference/rubric-based checks.
-15. Use `tool_review_submission_file(...)` on the final PDF/file before upload.
-16. Run the relevant submission tool once without `confirm_write` for a dry run.
-17. Re-run with `confirm_write=True` only after reviewing the exact file/path/assignment target.
-18. Run `tool_get_my_submission` after submission to confirm Canvas status.
+13. Use `tool_prepare_multi_agent_review_packet(...)` when you want a solver agent and an independent reviewer agent to check the solution, then send disagreements back to the solver before the assistant gives final feedback.
+14. Use `tool_prepare_solution_review_artifact(...)` for a reusable deeper review artifact, especially if no reference answer exists.
+15. Optionally use `tool_review_solution_correctness(...)` for faster reference/rubric-based checks.
+16. Use `tool_review_submission_file(...)` on the final PDF/file before upload.
+17. Run the relevant submission tool once without `confirm_write` for a dry run.
+18. Re-run with `confirm_write=True` only after reviewing the exact file/path/assignment target.
+19. Run `tool_get_my_submission` after submission to confirm Canvas status.
 
 If `tool_resolve_assignment_source` cannot identify the true prompt, it asks the user where the assignment lives instead of guessing.
 
@@ -170,14 +172,16 @@ The source resolver prevents common mistakes. For example, if Canvas says `Assig
 - `tool_make_practice_version(...)`: creates a similar but not identical practice plan.
 - `tool_check_my_draft(...)`: checks a student-authored draft for missing sections and common omissions.
 - `tool_review_solution_for_chat(...)`: prepares a review artifact and returns a user-facing chat summary plus automatically detected review signals. Use this when the user expects the assistant to say what is inaccurate and what should be changed in the conversation, not just where the artifact was saved.
+- `tool_prepare_multi_agent_review_packet(...)`: prepares a solver/reviewer/disagreement-resolution packet. The MCP cannot directly spawn Codex or Claude subagents by itself, but the packet tells the host assistant to run a solver agent, run an independent reviewer agent, compare their outputs, send disagreements back to the solver, and report the final consensus directly in chat.
 - `tool_prepare_solution_review_artifact(...)`: prepares a Gradescope-style artifact containing the prompt, student solution, optional reference/rubric, and detailed agent instructions. This is the preferred way to let Codex/Claude review whether a student's solution is correct when no answer key is available.
 - `tool_review_solution_correctness(...)`: runs a faster automated correctness-oriented check. It is strongest when given `reference_text`, `reference_path`, or `rubric_text`; without those, it clearly reports low confidence and only performs internal consistency checks.
 - `tool_review_submission_file(...)`: reviews a finished file for readability, expected problem coverage, and prompt-file-vs-solution-file mistakes before upload.
 - `tool_extract_due_and_submission_target(...)`: summarizes the due date and whether Canvas or Gradescope appears to be the target.
 
-Correctness review has three modes:
+Correctness review has four modes:
 
 - Chat-ready mode: run `tool_review_solution_for_chat(...)`. It returns the artifact path, quick detected issues, and a required follow-up instruction that the assistant must tell the user what is wrong or incomplete directly in chat instead of only returning the artifact path.
+- Multi-agent consensus mode: run `tool_prepare_multi_agent_review_packet(...)`. The MCP writes a packet for a solver agent, an independent reviewer agent, and a final disagreement-resolution pass. If the reviewer disagrees, the host assistant should send the disputed items back to the solver, then tell the user the exact final edits and confidence level.
 - Agent-assisted mode: run `tool_prepare_solution_review_artifact(...)`, then have Codex/Claude read the artifact and produce a per-problem correctness review. This mirrors the Gradescope MCP workflow: the MCP gathers and structures evidence, while the agent reasons from the prompt, solution, rubric, and domain knowledge.
 - Automated quick-check mode: run `tool_review_solution_correctness(...)`. This catches missing reference conclusions, suspicious formula mismatches, missing problem sections, and rubric terms that do not appear in the solution. It is not an official grade and cannot guarantee every proof step is correct.
 

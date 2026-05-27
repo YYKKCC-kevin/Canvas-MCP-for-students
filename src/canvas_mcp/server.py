@@ -24,6 +24,7 @@ from canvas_mcp.tools.learning import (
     extract_due_and_submission_target,
     generate_hint_pack,
     make_practice_version,
+    prepare_multi_agent_review_packet,
     prepare_solution_review_artifact,
     prepare_homework_help_pack,
     review_submission_file,
@@ -311,6 +312,36 @@ def tool_review_solution_for_chat(
     or needs revision directly in the conversation.
     """
     return review_solution_for_chat(
+        assignment_title,
+        solution_path,
+        solution_text,
+        assignment_text,
+        assignment_path,
+        reference_text,
+        reference_path,
+        rubric_text,
+        output_dir,
+    )
+
+
+@mcp.tool()
+def tool_prepare_multi_agent_review_packet(
+    assignment_title: str,
+    solution_path: str | None = None,
+    solution_text: str | None = None,
+    assignment_text: str | None = None,
+    assignment_path: str | None = None,
+    reference_text: str | None = None,
+    reference_path: str | None = None,
+    rubric_text: str | None = None,
+    output_dir: str | None = None,
+) -> str:
+    """Prepare solver/reviewer/disagreement packets for multi-agent review.
+
+    The MCP gathers context and writes a packet. The calling Codex/Claude host
+    should run the solver and reviewer agents, then report consensus in chat.
+    """
+    return prepare_multi_agent_review_packet(
         assignment_title,
         solution_path,
         solution_text,
