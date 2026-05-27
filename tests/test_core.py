@@ -21,6 +21,7 @@ from canvas_mcp.tools.learning import (
     extract_due_and_submission_target,
     generate_hint_pack,
     make_practice_version,
+    prepare_homework_help_pack,
 )
 from canvas_mcp.tools.submissions import submit_text_assignment, submit_url_assignment
 from canvas_mcp.tools.submissions import submit_file_assignment
@@ -205,6 +206,32 @@ def test_learning_practice_version_changes_context() -> None:
     assert "Practice Version" in result
     assert "similar but not identical" in result
     assert "least squares" in result.lower()
+
+
+def test_homework_help_pack_requests_confirmation_on_mismatch(monkeypatch) -> None:
+    def fake_prepare_assignment_workspace(*args, **kwargs) -> str:
+        return "\n".join(
+            [
+                "## Assignment Workspace Prepared",
+                "",
+                "- Folder: `/tmp/course_1/assignment_2_Assignment-4`",
+                "",
+                "### User Confirmation Required",
+                "- Assignment name `Assignment 4` appears to be number 4, "
+                "but linked file/resource `HW2.pdf` appears to be number 2.",
+            ]
+        )
+
+    monkeypatch.setattr(
+        "canvas_mcp.tools.learning.prepare_assignment_workspace",
+        fake_prepare_assignment_workspace,
+    )
+
+    result = prepare_homework_help_pack("1", "2")
+
+    assert "Homework Help Pack Awaiting Confirmation" in result
+    assert "allow_mismatched_files=True" in result
+    assert "Not Prepared" not in result
 
 
 def test_extract_due_and_submission_target_detects_gradescope() -> None:

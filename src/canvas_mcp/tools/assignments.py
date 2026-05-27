@@ -510,17 +510,23 @@ def prepare_assignment_workspace(
         warning_path.write_text(
             "# Potential Assignment/File Mismatch\n\n"
             "The Canvas assignment title and linked file names appear to refer to "
-            "different assignment numbers. Downloads were skipped by default to avoid "
-            "working on or submitting the wrong assignment.\n\n"
+            "different assignment numbers. The mismatched files were not downloaded "
+            "yet because user confirmation is required first.\n\n"
             + "\n".join(f"- {item}" for item in mismatches)
+            + "\n\nIf the user confirms the Canvas link is intentional, rerun the tool "
+            "with `allow_mismatched_files=True`.\n"
             + "\n",
             encoding="utf-8",
         )
         lines.append("")
-        lines.append("### Potential Assignment/File Mismatches")
+        lines.append("### User Confirmation Required")
         lines.append(
-            "Downloads were skipped because the assignment number and file number disagree. "
-            "Verify the Canvas page or set `allow_mismatched_files=True` only if this is intentional."
+            "The Canvas page links a file/resource whose homework or assignment number "
+            "appears different from the assignment title. Ask the user to confirm "
+            "whether this is intentional before downloading or using that file."
+        )
+        lines.append(
+            "If the user confirms, rerun with `allow_mismatched_files=True`."
         )
         lines.append(f"- Warning file: `{warning_path}`")
         for item in mismatches[:20]:

@@ -261,12 +261,13 @@ def prepare_homework_help_pack(
         max_files=20,
         allow_mismatched_files=allow_mismatched_files,
     )
-    if "### Potential Assignment/File Mismatches" in workspace_result and not allow_mismatched_files:
+    if "### User Confirmation Required" in workspace_result and not allow_mismatched_files:
         return (
-            "## Homework Help Pack Not Prepared\n\n"
+            "## Homework Help Pack Awaiting Confirmation\n\n"
             "The Canvas assignment appears to link to a file whose homework/assignment "
-            "number does not match the assignment title. To avoid helping with or submitting "
-            "the wrong homework, this tool stopped before generating a help pack.\n\n"
+            "number does not match the assignment title. Before downloading or using that "
+            "file, ask the user to confirm whether the Canvas link is intentional. If the "
+            "user confirms, rerun this tool with `allow_mismatched_files=True`.\n\n"
             f"{workspace_result}"
         )
     details = get_assignment_details(course_id, assignment_id, max_description_chars=50000)
