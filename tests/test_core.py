@@ -15,6 +15,13 @@ from canvas_mcp.tools.assignments import (
     _assignment_resource_mismatch,
     _canvas_attachment_download_url,
 )
+from canvas_mcp.tools.course_content import (
+    get_course_info,
+    list_course_announcements,
+    list_course_discussions,
+    list_course_modules,
+    list_exam_items,
+)
 from canvas_mcp.tools.learning import (
     check_my_draft,
     create_homework_template,
@@ -31,6 +38,21 @@ from canvas_mcp.tools.learning import (
 from canvas_mcp.tools.sources import resolve_assignment_source_from_canvas
 from canvas_mcp.tools.submissions import submit_text_assignment, submit_url_assignment
 from canvas_mcp.tools.submissions import submit_file_assignment
+
+
+class FakeCanvasClient:
+    def __init__(self, paginated: dict[str, list[dict]] | None = None, single: dict | None = None):
+        self.paginated = paginated or {}
+        self.single = single or {}
+        self.calls: list[tuple[str, object]] = []
+
+    def get_paginated(self, path: str, params=None) -> list[dict]:
+        self.calls.append((path, params))
+        return self.paginated.get(path, [])
+
+    def get(self, path: str, params=None) -> dict:
+        self.calls.append((path, params))
+        return self.single
 
 
 def test_next_link_extracts_canvas_pagination_url() -> None:
@@ -128,6 +150,156 @@ def test_canvas_attachment_metadata_can_resolve_download_url() -> None:
         _canvas_attachment_download_url(Response())
         == "https://canvas.example.edu/files/1/download"
     )
+
+
+def test_list_course_announcements_formats_recent_notices(monkeypatch) -> None:
+    fake_client = FakeCanvasClient(
+        paginated={
+            "/announcements": [
+                {
+                    "title": "Final Exam Room",
+                    "posted_at": "2026-05-20T20:00:00Z",
+                    "message": "<p>Bring your student ID.</p>",
+                    "html_url": "https://canvas.example.edu/announcements/1",
+                    "author": {"display_name": "Prof. Example"},
+                }
+            ]
+        }
+    )
+    monkeypatch.setattr("canvas_mcp.tools.course_content.get_client", lambda: fake_client)
+    monkeypatch.setattr(
+        "canvas_mcp.tools.course_content.fetch_courses",
+        lambda *_args, **_kwargs: [{"id": 101, "name": "ECON 120B"}],
+    )
+
+    result = list_course_announcements(days_back=14)
+
+    assert "Canvas Course Announcements" in result
+    assert "ECON 120B" in result
+    assert "Final Exam Room" in result
+    assert "Bring your student ID." in result
+    assert "Prof. Example" in result
+    assert fake_client.calls[0][0] == "/announcements"
+
+
+def test_list_exam_items_filters_exam_like_assignments(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "canvas_mcp.tools.course_content.fetch_courses",
+        lambda *_args, **_kwargs: [{"id": 101, "name": "ECON 120B"}],
+    )
+    monkeypatch.setattr(
+        "canvas_mcp.tools.course_content.fetch_course_assignments",
+        lambda *_args, **_kwargs: [
+            {
+                "id": 1,
+                "name": "Final Exam",
+                "due_at": "2026-06-10T23:59:00Z",
+                "points_possible": 100,
+                "submission_types": ["online_upload"],
+                "html_url": "https://canvas.example.edu/final",
+                "submission": {},
+            },
+            {
+                "id": 2,
+                "name": "Homework Assignment #5",
+                "due_at": "2026-06-01T23:59:00Z",
+                "points_possible": 100,
+                "submission_types": ["online_quiz"],
+                "html_url": "https://canvas.example.edu/homework",
+                "submission": {},
+            },
+        ],
+    )
+
+    result = list_exam_items()
+
+    assert "Canvas Exam / Quiz / Test Items" in result
+    assert "Final Exam" in result
+    assert "Homework Assignment #5" not in result
+
+
+def test_list_course_discussions_excludes_announcements_by_default(monkeypatch) -> None:
+    fake_client = FakeCanvasClient(
+        paginated={
+            "/courses/101/discussion_topics": [
+                {
+                    "id": 1,
+                    "title": "Problem Set Thread",
+                    "posted_at": "2026-05-22T12:00:00Z",
+                    "message": "<p>Ask questions here.</p>",
+                    "html_url": "https://canvas.example.edu/discussions/1",
+                    "author": {"display_name": "TA"},
+                },
+                {
+                    "id": 2,
+                    "title": "Announcement Thread",
+                    "is_announcement": True,
+                    "posted_at": "2026-05-23T12:00:00Z",
+                },
+            ]
+        }
+    )
+    monkeypatch.setattr("canvas_mcp.tools.course_content.get_client", lambda: fake_client)
+
+    result = list_course_discussions("101")
+
+    assert "Canvas Course Discussions" in result
+    assert "Problem Set Thread" in result
+    assert "Ask questions here." in result
+    assert "Announcement Thread" not in result
+
+
+def test_get_course_info_includes_syllabus_preview(monkeypatch) -> None:
+    fake_client = FakeCanvasClient(
+        single={
+            "id": 101,
+            "name": "ECON 120B",
+            "course_code": "ECON120B",
+            "workflow_state": "available",
+            "time_zone": "America/Los_Angeles",
+            "term": {"name": "Spring 2026"},
+            "teachers": [{"display_name": "Prof. Example"}],
+            "syllabus_body": "<p>Lecture meets Tuesday and Thursday.</p>",
+        }
+    )
+    monkeypatch.setattr("canvas_mcp.tools.course_content.get_client", lambda: fake_client)
+
+    result = get_course_info("101")
+
+    assert "# ECON 120B" in result
+    assert "Spring 2026" in result
+    assert "Prof. Example" in result
+    assert "Lecture meets Tuesday and Thursday." in result
+
+
+def test_list_course_modules_includes_class_material_items(monkeypatch) -> None:
+    fake_client = FakeCanvasClient(
+        paginated={
+            "/courses/101/modules": [
+                {
+                    "name": "Week 9 Lectures",
+                    "published": True,
+                    "items": [
+                        {
+                            "title": "Lecture 17 Slides",
+                            "type": "File",
+                            "published": True,
+                            "html_url": "https://canvas.example.edu/files/1",
+                            "completion_requirement": {"type": "must_view"},
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    monkeypatch.setattr("canvas_mcp.tools.course_content.get_client", lambda: fake_client)
+
+    result = list_course_modules("101")
+
+    assert "Canvas Course Modules" in result
+    assert "Week 9 Lectures" in result
+    assert "Lecture 17 Slides" in result
+    assert "must_view" in result
 
 
 def test_default_download_dir_is_project_relative() -> None:

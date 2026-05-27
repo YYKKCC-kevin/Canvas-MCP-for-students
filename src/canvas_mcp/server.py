@@ -12,6 +12,13 @@ from canvas_mcp.tools.assignments import (
     prepare_assignment_workspace,
 )
 from canvas_mcp.tools.courses import list_courses
+from canvas_mcp.tools.course_content import (
+    get_course_info,
+    list_course_announcements,
+    list_course_discussions,
+    list_course_modules,
+    list_exam_items,
+)
 from canvas_mcp.tools.gradescope_bridge import (
     gradescope_bridge_status,
     gradescope_get_assignment_details,
@@ -105,6 +112,79 @@ def tool_get_todo_items(
     Dates may be YYYY-MM-DD or ISO 8601 strings.
     """
     return get_todo_items(start_date, end_date, incomplete_only, course_ids)
+
+
+@mcp.tool()
+def tool_list_course_announcements(
+    course_id: str | None = None,
+    days_back: int = 30,
+    max_items: int = 25,
+) -> str:
+    """List recent Canvas announcements for one course or all active courses.
+
+    Args:
+        course_id: Optional Canvas course ID. If omitted, searches active courses.
+        days_back: How many days of announcements to include.
+        max_items: Maximum announcements returned across the selected scope.
+    """
+    return list_course_announcements(course_id, days_back, max_items)
+
+
+@mcp.tool()
+def tool_list_exam_items(
+    course_id: str | None = None,
+    include_past: bool = True,
+    days_ahead: int = 120,
+    max_items: int = 100,
+) -> str:
+    """List exam-, quiz-, test-, midterm-, and final-like Canvas items.
+
+    Args:
+        course_id: Optional Canvas course ID. If omitted, searches active courses.
+        include_past: Include past/graded exam-like items in addition to upcoming ones.
+        days_ahead: Future date window when include_past is False.
+        max_items: Maximum rows returned.
+    """
+    return list_exam_items(course_id, include_past, days_ahead, max_items)
+
+
+@mcp.tool()
+def tool_list_course_discussions(
+    course_id: str,
+    include_announcements: bool = False,
+    search_term: str | None = None,
+    max_items: int = 25,
+) -> str:
+    """List discussion topics for a Canvas course.
+
+    Args:
+        course_id: Canvas course ID.
+        include_announcements: Include announcement-style discussion topics.
+        search_term: Optional Canvas discussion search term.
+        max_items: Maximum rows returned.
+    """
+    return list_course_discussions(
+        course_id,
+        include_announcements,
+        search_term,
+        max_items,
+    )
+
+
+@mcp.tool()
+def tool_get_course_info(course_id: str, max_syllabus_chars: int = 3000) -> str:
+    """Fetch course metadata plus syllabus/class information exposed by Canvas."""
+    return get_course_info(course_id, max_syllabus_chars)
+
+
+@mcp.tool()
+def tool_list_course_modules(
+    course_id: str,
+    search_term: str | None = None,
+    max_items: int = 100,
+) -> str:
+    """List Canvas modules and module items such as lecture/class materials."""
+    return list_course_modules(course_id, search_term, max_items)
 
 
 @mcp.tool()

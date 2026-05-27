@@ -7,6 +7,8 @@ Local MCP server for Canvas LMS. It is designed like a safer, cleaner cousin of 
 - List active Canvas courses.
 - Show upcoming, overdue, unsubmitted, or undated assignments with due dates.
 - Query Canvas planner/todo items.
+- Read course announcements, discussion topics, syllabus/class information, and module/lecture materials.
+- Find exam-, quiz-, test-, midterm-, and final-like Canvas items across active courses.
 - Fetch full assignment details, including submission status and cleaned instructions.
 - Resolve where the real assignment prompt lives: Canvas files, GitHub, Gradescope, or a user-provided file/link.
 - Prepare a local assignment workspace with `assignment.md` and optionally downloaded linked files.
@@ -127,22 +129,23 @@ See `mcp-desktop-config-snippet.json`. If your path contains spaces, keep each a
 1. Run `canvas-mcp-login` if you are using browser/Duo login mode.
 2. `tool_list_courses`
 3. `tool_get_todo_items` or `tool_get_missing_work`
-4. `tool_get_assignment_details`
-5. `tool_resolve_assignment_source`
-6. If the source is Canvas, run `tool_prepare_assignment_workspace`.
-7. If the source is GitHub, inspect or clone the linked repo/file before preparing work.
-8. If the source is Gradescope, run `tool_gradescope_bridge_status`, then list Gradescope courses/assignments.
-9. `tool_prepare_homework_help_pack`
-10. Write your own solution in the generated template.
-11. Use `tool_check_my_draft` while drafting.
-12. Use `tool_review_solution_for_chat(...)` when you want the assistant to tell the user directly what is inaccurate or needs revision.
-13. Use `tool_prepare_multi_agent_review_packet(...)` when you want a solver agent and an independent reviewer agent to check the solution, then send disagreements back to the solver before the assistant gives final feedback.
-14. Use `tool_prepare_solution_review_artifact(...)` for a reusable deeper review artifact, especially if no reference answer exists.
-15. Optionally use `tool_review_solution_correctness(...)` for faster reference/rubric-based checks.
-16. Use `tool_review_submission_file(...)` on the final PDF/file before upload.
-17. Run the relevant submission tool once without `confirm_write` for a dry run.
-18. Re-run with `confirm_write=True` only after reviewing the exact file/path/assignment target.
-19. Run `tool_get_my_submission` after submission to confirm Canvas status.
+4. Use `tool_list_course_announcements(...)`, `tool_list_exam_items(...)`, `tool_list_course_discussions(...)`, `tool_get_course_info(...)`, or `tool_list_course_modules(...)` when you need notices, exam dates, discussion posts, syllabus/class info, or lecture/module materials.
+5. `tool_get_assignment_details`
+6. `tool_resolve_assignment_source`
+7. If the source is Canvas, run `tool_prepare_assignment_workspace`.
+8. If the source is GitHub, inspect or clone the linked repo/file before preparing work.
+9. If the source is Gradescope, run `tool_gradescope_bridge_status`, then list Gradescope courses/assignments.
+10. `tool_prepare_homework_help_pack`
+11. Write your own solution in the generated template.
+12. Use `tool_check_my_draft` while drafting.
+13. Use `tool_review_solution_for_chat(...)` when you want the assistant to tell the user directly what is inaccurate or needs revision.
+14. Use `tool_prepare_multi_agent_review_packet(...)` when you want a solver agent and an independent reviewer agent to check the solution, then send disagreements back to the solver before the assistant gives final feedback.
+15. Use `tool_prepare_solution_review_artifact(...)` for a reusable deeper review artifact, especially if no reference answer exists.
+16. Optionally use `tool_review_solution_correctness(...)` for faster reference/rubric-based checks.
+17. Use `tool_review_submission_file(...)` on the final PDF/file before upload.
+18. Run the relevant submission tool once without `confirm_write` for a dry run.
+19. Re-run with `confirm_write=True` only after reviewing the exact file/path/assignment target.
+20. Run `tool_get_my_submission` after submission to confirm Canvas status.
 
 If `tool_resolve_assignment_source` cannot identify the true prompt, it asks the user where the assignment lives instead of guessing.
 
@@ -155,6 +158,14 @@ If `tool_resolve_assignment_source` cannot identify the true prompt, it asks the
 - `tool_get_missing_work(...)`: finds unsubmitted work across courses within a date window.
 - `tool_get_todo_items(...)`: reads Canvas planner/todo items.
 - `tool_get_assignment_details(...)`: fetches one Canvas assignment's deadline, status, instructions, submission type, and links.
+
+### Course Content And Exam Tools
+
+- `tool_list_course_announcements(...)`: lists recent announcements for one course or all active courses, including posted time, author, preview text, and Canvas URL.
+- `tool_list_exam_items(...)`: finds exam-, quiz-, test-, midterm-, and final-like Canvas assignment items across active courses or within one course.
+- `tool_list_course_discussions(...)`: lists discussion topics for a course, with an option to include announcement-style discussion topics.
+- `tool_get_course_info(...)`: fetches course metadata, teachers, sections, term, time zone, and syllabus/class information exposed by Canvas.
+- `tool_list_course_modules(...)`: lists Canvas modules and module items, useful for lecture slides, weekly class materials, readings, pages, files, and external links.
 
 ### Assignment Source Tools
 
