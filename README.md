@@ -60,6 +60,8 @@ CANVAS_STORAGE_STATE=.canvas-storage-state.json
 
 `CANVAS_BASE_URL` should be your school's Canvas website. `CANVAS_EMAIL` can be your username, school email, or whatever your Canvas/SSO login page expects.
 
+Note: use the Canvas main address, not the school's temporary SSO redirect URL. For example, use `https://canvas.ucsd.edu` or `https://canvas.eee.uci.edu`, not a URL containing `/SAML2/Redirect/SSO?...`; those redirect links are often one-time or expired and can confuse the login helper.
+
 3. Log in once through the browser helper:
 
 ```bash
@@ -85,6 +87,8 @@ CANVAS_BASE_URL=your_canvas_address
 # Example: CANVAS_BASE_URL=https://canvas.eee.uci.edu
 CANVAS_ACCESS_TOKEN=paste_your_canvas_access_token_here
 ```
+
+Use the same Canvas main address rule in token mode: `CANVAS_BASE_URL` should be the Canvas site root, not an SSO login URL.
 
 To create a token:
 

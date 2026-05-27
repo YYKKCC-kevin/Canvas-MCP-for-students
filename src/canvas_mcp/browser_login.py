@@ -22,12 +22,15 @@ USERNAME_SELECTORS = [
     'input[name="user"]',
     'input[name="ucinetid"]',
     'input[name="loginfmt"]',
+    'input[name="urn:mace:ucsd.edu:sso:username"]',
+    'input[autocomplete="username"]',
     'input[type="email"]',
     "#username",
     "#j_username",
     "#UserName",
     "#user",
     "#ucinetid",
+    "#ssousername",
     "#i0116",
 ]
 
@@ -37,10 +40,13 @@ PASSWORD_SELECTORS = [
     'input[name="j_password"]',
     'input[name="Password"]',
     'input[name="passwd"]',
+    'input[name="urn:mace:ucsd.edu:sso:password"]',
+    'input[autocomplete="current-password"]',
     'input[type="password"]',
     "#password",
     "#j_password",
     "#Password",
+    "#ssopassword",
     "#i0118",
 ]
 

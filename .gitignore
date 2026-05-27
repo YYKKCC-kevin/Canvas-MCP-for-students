@@ -1,5 +1,7 @@
 .env
 .canvas-storage-state.json
+.ucsd-canvas-storage-state.json
+*canvas-storage-state.json
 .canvas-session.json
 canvas-mcp-downloads/
 .venv/
