@@ -1,0 +1,27 @@
+[project]
+name = "canvas-mcp"
+version = "0.1.0"
+description = "MCP server for Canvas LMS course, assignment, deadline, and safe submission workflows"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "beautifulsoup4>=4.14.0",
+    "mcp>=1.26.0",
+    "python-dotenv>=1.2.2",
+    "requests>=2.32.0",
+]
+
+[project.scripts]
+canvas-mcp = "canvas_mcp.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/canvas_mcp"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0",
+]

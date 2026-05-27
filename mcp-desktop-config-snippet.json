@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "canvas-mcp": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/Users/kuanchengye/Library/CloudStorage/OneDrive-\u4e2a\u4eba/math/UCI/lessons for 2nd year/230/final proj/canvas-mcp",
+        "run",
+        "canvas-mcp"
+      ]
+    }
+  }
+}
