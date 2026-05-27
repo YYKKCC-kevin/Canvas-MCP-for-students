@@ -122,7 +122,7 @@ If `gradescope-mcp` is cloned at `~/gradescope-mcp`, `GRADESCOPE_MCP_PATH` can b
 
 ## Codex MCP Config Snippet
 
-See `mcp-desktop-config-snippet.json`. If your path contains spaces, keep each argument as a separate JSON string exactly like the snippet.
+See `mcp-desktop-config-snippet.json`. Replace `/absolute/path/to/Canvas-MCP-for-students` with the folder where you cloned this repo. If your path contains spaces, keep each argument as a separate JSON string exactly like the snippet.
 
 ## Useful Tool Flow
 
