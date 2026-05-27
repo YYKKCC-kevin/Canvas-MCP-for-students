@@ -371,6 +371,33 @@ def _canvas_attachment_download_url(response) -> str | None:
     return url if isinstance(url, str) and url else None
 
 
+def _assignment_resource_mismatch(
+    assignment_name: str | None,
+    resource_name: str | None,
+) -> str | None:
+    assignment_number = _named_number(assignment_name)
+    resource_number = _named_number(resource_name)
+    if assignment_number is None or resource_number is None:
+        return None
+    if assignment_number == resource_number:
+        return None
+    return (
+        f"Assignment name `{assignment_name}` appears to be number {assignment_number}, "
+        f"but linked file/resource `{resource_name}` appears to be number {resource_number}."
+    )
+
+
+def _named_number(text: str | None) -> str | None:
+    if not text:
+        return None
+    match = re.search(
+        r"\b(?:assignment|homework|hw)\s*[-_#:]?\s*(\d+)\b",
+        text,
+        flags=re.I,
+    )
+    return match.group(1) if match else None
+
+
 def _downloadable_link(url: str) -> bool:
     path = urlparse(url).path.lower()
     if "/files/" in path:
@@ -384,6 +411,7 @@ def prepare_assignment_workspace(
     output_dir: str | None = None,
     download_linked_files: bool = True,
     max_files: int = 10,
+    allow_mismatched_files: bool = False,
 ) -> str:
     """Create a local folder with assignment instructions and linked files."""
     try:
@@ -407,6 +435,8 @@ def prepare_assignment_workspace(
         links = _extract_links(assignment.get("description"), client.base_url)
         downloaded: list[str] = []
         skipped: list[str] = []
+        mismatches: list[str] = []
+        existing_untrusted: list[str] = []
         if download_linked_files:
             files_dir = work_dir / "files"
             files_dir.mkdir(exist_ok=True)
@@ -414,6 +444,14 @@ def prepare_assignment_workspace(
                 if len(downloaded) >= max_files:
                     break
                 url = link["url"]
+                mismatch = _assignment_resource_mismatch(
+                    assignment.get("name"),
+                    link.get("text"),
+                )
+                if mismatch and not allow_mismatched_files:
+                    mismatches.append(mismatch)
+                    skipped.append(url)
+                    continue
                 if not _downloadable_link(url):
                     skipped.append(url)
                     continue
@@ -428,6 +466,14 @@ def prepare_assignment_workspace(
                         skipped.append(url)
                         continue
                     filename = _filename_from_response(url, response.headers)
+                    mismatch = _assignment_resource_mismatch(
+                        assignment.get("name"),
+                        filename,
+                    )
+                    if mismatch and not allow_mismatched_files:
+                        mismatches.append(mismatch)
+                        skipped.append(url)
+                        continue
                     out_path = files_dir / filename
                     with out_path.open("wb") as fh:
                         for chunk in response.iter_content(chunk_size=1024 * 256):
@@ -436,6 +482,13 @@ def prepare_assignment_workspace(
                     downloaded.append(str(out_path))
                 except Exception as e:
                     skipped.append(f"{url} ({e})")
+            if mismatches:
+                downloaded_set = {str(Path(path)) for path in downloaded}
+                existing_untrusted = [
+                    str(path)
+                    for path in sorted(files_dir.iterdir())
+                    if path.is_file() and str(path) not in downloaded_set
+                ]
     except AuthError as e:
         return f"Authentication error: {e}"
     except CanvasApiError as e:
@@ -452,6 +505,36 @@ def prepare_assignment_workspace(
     ]
     for path in downloaded:
         lines.append(f"- `{path}`")
+    if mismatches:
+        warning_path = work_dir / "MISMATCH_WARNING.md"
+        warning_path.write_text(
+            "# Potential Assignment/File Mismatch\n\n"
+            "The Canvas assignment title and linked file names appear to refer to "
+            "different assignment numbers. Downloads were skipped by default to avoid "
+            "working on or submitting the wrong assignment.\n\n"
+            + "\n".join(f"- {item}" for item in mismatches)
+            + "\n",
+            encoding="utf-8",
+        )
+        lines.append("")
+        lines.append("### Potential Assignment/File Mismatches")
+        lines.append(
+            "Downloads were skipped because the assignment number and file number disagree. "
+            "Verify the Canvas page or set `allow_mismatched_files=True` only if this is intentional."
+        )
+        lines.append(f"- Warning file: `{warning_path}`")
+        for item in mismatches[:20]:
+            lines.append(f"- {item}")
+    if existing_untrusted:
+        lines.append("")
+        lines.append("### Existing Files Not Trusted")
+        lines.append(
+            "This workspace already contains files from an earlier run. They were not "
+            "downloaded in this run and should not be used for this assignment unless "
+            "you manually verify them."
+        )
+        for path in existing_untrusted[:20]:
+            lines.append(f"- `{path}`")
     if skipped:
         lines.append("")
         lines.append("### Links Not Downloaded")

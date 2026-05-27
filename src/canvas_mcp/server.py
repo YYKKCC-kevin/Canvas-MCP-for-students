@@ -112,10 +112,16 @@ def tool_prepare_assignment_workspace(
     output_dir: str | None = None,
     download_linked_files: bool = True,
     max_files: int = 10,
+    allow_mismatched_files: bool = False,
 ) -> str:
     """Create a local folder with assignment.md and best-effort linked file downloads."""
     return prepare_assignment_workspace(
-        course_id, assignment_id, output_dir, download_linked_files, max_files
+        course_id,
+        assignment_id,
+        output_dir,
+        download_linked_files,
+        max_files,
+        allow_mismatched_files,
     )
 
 
@@ -124,12 +130,15 @@ def tool_prepare_homework_help_pack(
     course_id: str,
     assignment_id: str,
     output_dir: str | None = None,
+    allow_mismatched_files: bool = False,
 ) -> str:
     """Create template, hints, practice prompt, and submission-target files.
 
     This tool intentionally does not generate submit-ready homework answers.
     """
-    return prepare_homework_help_pack(course_id, assignment_id, output_dir)
+    return prepare_homework_help_pack(
+        course_id, assignment_id, output_dir, allow_mismatched_files
+    )
 
 
 @mcp.tool()

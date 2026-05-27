@@ -250,6 +250,7 @@ def prepare_homework_help_pack(
     course_id: str,
     assignment_id: str,
     output_dir: str | None = None,
+    allow_mismatched_files: bool = False,
 ) -> str:
     """Prepare a local folder with safe homework support artifacts."""
     workspace_result = prepare_assignment_workspace(
@@ -258,7 +259,16 @@ def prepare_homework_help_pack(
         output_dir=output_dir,
         download_linked_files=True,
         max_files=20,
+        allow_mismatched_files=allow_mismatched_files,
     )
+    if "### Potential Assignment/File Mismatches" in workspace_result and not allow_mismatched_files:
+        return (
+            "## Homework Help Pack Not Prepared\n\n"
+            "The Canvas assignment appears to link to a file whose homework/assignment "
+            "number does not match the assignment title. To avoid helping with or submitting "
+            "the wrong homework, this tool stopped before generating a help pack.\n\n"
+            f"{workspace_result}"
+        )
     details = get_assignment_details(course_id, assignment_id, max_description_chars=50000)
     title = _title_from_details(details)
     folder = _folder_from_workspace_result(workspace_result)
@@ -313,6 +323,7 @@ def _workspace_text(folder: Path) -> str:
     generated = {
         "homework_template.md",
         "hint_pack.md",
+        "MISMATCH_WARNING.md",
         "practice_version.md",
         "submission_target.md",
     }

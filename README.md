@@ -125,6 +125,8 @@ Canvas APIs are paginated. This server follows pagination up to `CANVAS_MAX_PAGE
 
 File downloads are best-effort because instructors can link content through modules, external tools, Google Drive, or locked Canvas files. The workspace tool saves all discovered links in `assignment.md` even when it cannot download them.
 
+The workspace and homework-help tools compare the assignment number with linked homework file names. If Canvas says `Assignment 4` but links something like `HW2.pdf`, downloads and help-pack generation stop by default to avoid working on or submitting the wrong assignment. Only override this with `allow_mismatched_files=True` after manually confirming the link is intentional.
+
 By default, assignment files are saved under `./canvas-mcp-downloads` relative to the directory where the MCP server is started. In Codex/Claude, that usually means the current project or conversation workspace. You can also set `CANVAS_DOWNLOAD_DIR` in `.env`, or pass `output_dir` to `tool_prepare_assignment_workspace` / `tool_prepare_homework_help_pack`.
 
 Most users only need `CANVAS_BASE_URL`, `CANVAS_EMAIL`, `CANVAS_PASSWORD`, and `CANVAS_STORAGE_STATE` for browser/Duo login mode. `CANVAS_DOWNLOAD_DIR` and `CANVAS_MAX_PAGES` are optional advanced settings.
