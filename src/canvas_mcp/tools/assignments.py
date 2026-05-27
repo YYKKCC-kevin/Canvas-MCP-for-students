@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import os
 import re
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -348,9 +349,24 @@ def _filename_from_response(url: str, response_headers: dict[str, str]) -> str:
     disposition = response_headers.get("Content-Disposition", "")
     match = re.search(r'filename\*?=(?:UTF-8\'\')?"?([^";]+)"?', disposition)
     if match:
-        return _slug(match.group(1))
+        return _slug(unquote(match.group(1)))
     path_name = os.path.basename(urlparse(url).path)
-    return _slug(path_name or "download")
+    return _slug(unquote(path_name or "download"))
+
+
+def _canvas_attachment_download_url(response) -> str | None:
+    content_type = response.headers.get("Content-Type", "")
+    if "json" not in content_type.lower():
+        return None
+    try:
+        payload = response.json()
+    except json.JSONDecodeError:
+        return None
+    attachment = payload.get("attachment") if isinstance(payload, dict) else None
+    if not isinstance(attachment, dict):
+        return None
+    url = attachment.get("url")
+    return url if isinstance(url, str) and url else None
 
 
 def _downloadable_link(url: str) -> bool:
@@ -401,6 +417,10 @@ def prepare_assignment_workspace(
                     continue
                 try:
                     response = client.download(url)
+                    attachment_url = _canvas_attachment_download_url(response)
+                    if attachment_url:
+                        url = attachment_url
+                        response = client.download(attachment_url)
                     content_type = response.headers.get("Content-Type", "")
                     if "text/html" in content_type and "/files/" not in urlparse(url).path:
                         skipped.append(url)

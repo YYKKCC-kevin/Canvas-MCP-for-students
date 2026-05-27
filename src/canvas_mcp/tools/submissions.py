@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from canvas_mcp.auth import AuthError, get_client
 from canvas_mcp.client import CanvasApiError
 from canvas_mcp.formatting import clean_html, human_datetime
@@ -161,4 +163,58 @@ def submit_url_assignment(
         f"- Submitted at: {human_datetime(result.get('submitted_at'))}\n"
         f"- Attempt: {result.get('attempt')}\n"
         f"- Submitted URL: {result.get('url') or url}"
+    )
+
+
+def submit_file_assignment(
+    course_id: str,
+    assignment_id: str,
+    file_path: str,
+    comment: str | None = None,
+    confirm_write: bool = False,
+) -> str:
+    """Submit a completed local file to a Canvas online-upload assignment."""
+    path = Path(file_path).expanduser()
+    if not path.exists() or not path.is_file():
+        return f"Error: file_path does not exist or is not a file: {path}"
+
+    details = [
+        f"course_id=`{course_id}`",
+        f"assignment_id=`{assignment_id}`",
+        "submission_type=`online_upload`",
+        f"file=`{path}`",
+        f"size_bytes={path.stat().st_size}",
+    ]
+    if comment:
+        details.append(f"comment={comment[:240]!r}")
+    if not confirm_write:
+        return _write_confirmation("submit_file_assignment", details)
+
+    try:
+        client = get_client()
+        file_id = client.upload_submission_file(course_id, assignment_id, path)
+        data = {
+            "submission[submission_type]": "online_upload",
+            "submission[file_ids][]": str(file_id),
+        }
+        if comment:
+            data["comment[text_comment]"] = comment
+        result = client.post_form(
+            f"/courses/{course_id}/assignments/{assignment_id}/submissions",
+            data=data,
+        )
+    except AuthError as e:
+        return f"Authentication error: {e}"
+    except CanvasApiError as e:
+        return f"Canvas API error: {e}"
+    except Exception as e:
+        return f"Error submitting file assignment: {e}"
+
+    return (
+        "## File Submission Saved\n\n"
+        f"- Workflow state: {result.get('workflow_state')}\n"
+        f"- Submitted at: {human_datetime(result.get('submitted_at'))}\n"
+        f"- Attempt: {result.get('attempt')}\n"
+        f"- File ID: {file_id}\n"
+        f"- File: `{path}`"
     )

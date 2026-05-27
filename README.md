@@ -9,7 +9,8 @@ Local MCP server for Canvas LMS. It is designed like a safer, cleaner cousin of 
 - Query Canvas planner/todo items.
 - Fetch full assignment details, including submission status and cleaned instructions.
 - Prepare a local assignment workspace with `assignment.md` and optionally downloaded linked files.
-- Submit online text or URL assignments only when `confirm_write=True`.
+- Create safe homework help packs: fill-in templates, hint packs, practice versions, and draft checklists.
+- Submit completed student-authored text, URL, or file-upload assignments only when `confirm_write=True`.
 
 ## Safety Model
 
@@ -18,6 +19,8 @@ This server helps Codex collect assignment context and prepare work. It does not
 For academic work, use the workspace tools to understand requirements, draft your own solution, run checks, and decide what to submit.
 
 If you use browser login mode, keep `.env` local and private. Duo reduces risk, but a plaintext school password is still sensitive.
+
+The homework-help tools are designed for learning support. They intentionally create scaffolds, hints, practice prompts, and draft checks rather than submit-ready solutions.
 
 ## Setup
 
@@ -93,8 +96,28 @@ See `mcp-desktop-config-snippet.json`. If your path contains spaces, keep each a
 3. `tool_get_todo_items` or `tool_get_missing_work`
 4. `tool_get_assignment_details`
 5. `tool_prepare_assignment_workspace`
-6. Let Codex work inside the generated folder.
-7. If needed, manually review the result and call `tool_submit_text_assignment(..., confirm_write=True)` or `tool_submit_url_assignment(..., confirm_write=True)`.
+6. `tool_prepare_homework_help_pack`
+7. Write your own solution in the generated template.
+8. Use `tool_check_my_draft` on your completed draft.
+9. If needed, manually review the result and call `tool_submit_text_assignment(...)`, `tool_submit_url_assignment(...)`, or `tool_submit_file_assignment(...)`.
+10. Submission tools first return a dry run. Re-run with `confirm_write=True` only after you have reviewed the exact completed work.
+
+## Homework Help Tools
+
+- `tool_prepare_homework_help_pack(course_id, assignment_id)`: creates `homework_template.md`, `hint_pack.md`, `practice_version.md`, and `submission_target.md` beside the assignment files.
+- `tool_create_homework_template(...)`: creates a blank, fill-in structure by problem.
+- `tool_generate_hint_pack(...)`: gives concepts, formulas to consider, and checklist-style hints.
+- `tool_make_practice_version(...)`: creates a similar but not identical practice plan.
+- `tool_check_my_draft(...)`: checks a student-authored draft for missing sections and common omissions.
+- `tool_extract_due_and_submission_target(...)`: summarizes the due date and whether Canvas or Gradescope appears to be the target.
+
+## Submission Tools
+
+- `tool_submit_text_assignment(...)`: submits finished text-entry work to Canvas.
+- `tool_submit_url_assignment(...)`: submits a finished URL to Canvas.
+- `tool_submit_file_assignment(...)`: uploads a completed local file and submits it to a Canvas `online_upload` assignment.
+
+Canvas assignments that say to submit on Gradescope should be submitted through Gradescope, not with Canvas file upload.
 
 ## Notes
 
@@ -110,3 +133,4 @@ Most users only need `CANVAS_BASE_URL`, `CANVAS_EMAIL`, `CANVAS_PASSWORD`, and `
 - Courses API: https://canvas.instructure.com/doc/api/courses.html
 - Assignments API: https://canvas.instructure.com/doc/api/assignments.html
 - Submissions API: https://canvas.instructure.com/doc/api/submissions.html
+- File upload workflow: https://canvas.instructure.com/doc/api/file.file_uploads.html

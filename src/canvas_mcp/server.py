@@ -12,8 +12,17 @@ from canvas_mcp.tools.assignments import (
     prepare_assignment_workspace,
 )
 from canvas_mcp.tools.courses import list_courses
+from canvas_mcp.tools.learning import (
+    check_my_draft,
+    create_homework_template,
+    extract_due_and_submission_target,
+    generate_hint_pack,
+    make_practice_version,
+    prepare_homework_help_pack,
+)
 from canvas_mcp.tools.submissions import (
     get_my_submission,
+    submit_file_assignment,
     submit_text_assignment,
     submit_url_assignment,
 )
@@ -111,6 +120,71 @@ def tool_prepare_assignment_workspace(
 
 
 @mcp.tool()
+def tool_prepare_homework_help_pack(
+    course_id: str,
+    assignment_id: str,
+    output_dir: str | None = None,
+) -> str:
+    """Create template, hints, practice prompt, and submission-target files.
+
+    This tool intentionally does not generate submit-ready homework answers.
+    """
+    return prepare_homework_help_pack(course_id, assignment_id, output_dir)
+
+
+@mcp.tool()
+def tool_create_homework_template(
+    assignment_title: str,
+    assignment_text: str | None = None,
+    output_path: str | None = None,
+) -> str:
+    """Create a fill-in homework template without solving the assignment."""
+    return create_homework_template(assignment_title, assignment_text, output_path)
+
+
+@mcp.tool()
+def tool_generate_hint_pack(
+    assignment_title: str,
+    assignment_text: str,
+    output_path: str | None = None,
+) -> str:
+    """Generate conceptual hints and checklists, not final answers."""
+    return generate_hint_pack(assignment_title, assignment_text, output_path)
+
+
+@mcp.tool()
+def tool_check_my_draft(
+    assignment_title: str,
+    assignment_text: str,
+    draft_text: str | None = None,
+    draft_path: str | None = None,
+    output_path: str | None = None,
+) -> str:
+    """Check a student-authored draft for structure and common missing pieces."""
+    if draft_path:
+        from pathlib import Path
+
+        draft_text = Path(draft_path).expanduser().read_text(encoding="utf-8")
+    return check_my_draft(assignment_title, assignment_text, draft_text or "", output_path)
+
+
+@mcp.tool()
+def tool_make_practice_version(
+    assignment_title: str,
+    assignment_text: str,
+    output_path: str | None = None,
+) -> str:
+    """Create a similar-but-not-identical practice version for studying."""
+    return make_practice_version(assignment_title, assignment_text, output_path)
+
+
+@mcp.tool()
+def tool_extract_due_and_submission_target(assignment_details: str) -> str:
+    """Extract the due date and whether submission is on Canvas, Gradescope, or unknown."""
+    return extract_due_and_submission_target(assignment_details)
+
+
+@mcp.tool()
 def tool_get_my_submission(course_id: str, assignment_id: str) -> str:
     """Get the authenticated user's current submission state for an assignment."""
     return get_my_submission(course_id, assignment_id)
@@ -138,3 +212,18 @@ def tool_submit_url_assignment(
 ) -> str:
     """Submit an online URL assignment. Requires confirm_write=True."""
     return submit_url_assignment(course_id, assignment_id, url, comment, confirm_write)
+
+
+@mcp.tool()
+def tool_submit_file_assignment(
+    course_id: str,
+    assignment_id: str,
+    file_path: str,
+    comment: str | None = None,
+    confirm_write: bool = False,
+) -> str:
+    """Submit a completed local file to a Canvas online-upload assignment.
+
+    This is for student-authored finished work and requires confirm_write=True.
+    """
+    return submit_file_assignment(course_id, assignment_id, file_path, comment, confirm_write)

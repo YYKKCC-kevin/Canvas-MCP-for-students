@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import json
+import mimetypes
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -131,3 +132,53 @@ class CanvasClient:
         if size > max_bytes:
             raise CanvasApiError(f"Refusing to download {size} bytes from {url}")
         return response
+
+    def upload_submission_file(
+        self,
+        course_id: str,
+        assignment_id: str,
+        file_path: Path,
+    ) -> int:
+        """Upload a local file for a Canvas online_upload submission."""
+        path = file_path.expanduser()
+        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        init_payload = {
+            "name": path.name,
+            "size": str(path.stat().st_size),
+            "content_type": content_type,
+        }
+        init = self.post_form(
+            f"/courses/{course_id}/assignments/{assignment_id}/submissions/self/files",
+            data=init_payload,
+        )
+        upload_url = init.get("upload_url")
+        upload_params = init.get("upload_params") or {}
+        if not upload_url:
+            raise CanvasApiError("Canvas did not return upload_url for submission file.")
+
+        with path.open("rb") as fh:
+            upload_response = requests.post(
+                upload_url,
+                data=upload_params,
+                files={"file": (path.name, fh, content_type)},
+                timeout=self.timeout,
+                allow_redirects=False,
+            )
+        if upload_response.status_code in {301, 302, 303, 307, 308}:
+            location = upload_response.headers.get("Location")
+            if not location:
+                raise CanvasApiError("Canvas upload redirect did not include Location.")
+            final = self.request("GET", location)
+            payload = final.json()
+        elif 200 <= upload_response.status_code < 300:
+            payload = upload_response.json() if upload_response.content else {}
+        else:
+            detail = upload_response.text[:800].replace("\n", " ")
+            raise CanvasApiError(
+                f"Canvas file upload failed with status {upload_response.status_code}: {detail}"
+            )
+
+        file_id = payload.get("id") or payload.get("attachment", {}).get("id")
+        if not file_id:
+            raise CanvasApiError(f"Canvas upload response did not include file id: {payload}")
+        return int(file_id)
