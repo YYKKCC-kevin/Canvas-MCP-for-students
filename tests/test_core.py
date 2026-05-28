@@ -9,7 +9,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from canvas_mcp.client import _next_link
 from canvas_mcp.client import CanvasClient
 from canvas_mcp.formatting import clean_html, due_status
-from canvas_mcp.browser_login import canvas_settings_url, normalize_base_url
+from canvas_mcp.browser_login import (
+    _is_canvas_authenticated_url,
+    canvas_settings_url,
+    normalize_base_url,
+)
 from canvas_mcp.tools.assignments import (
     DEFAULT_DOWNLOAD_DIR,
     _assignment_resource_mismatch,
@@ -110,6 +114,21 @@ def test_browser_login_helper_builds_settings_url() -> None:
 
 def test_browser_login_helper_normalizes_default_url() -> None:
     assert normalize_base_url(None) == "https://canvas.eee.uci.edu"
+
+
+def test_browser_login_helper_detects_authenticated_canvas_url() -> None:
+    assert _is_canvas_authenticated_url(
+        "https://canvas.eee.uci.edu/profile/settings",
+        "http://canvas.eee.uci.edu/",
+    )
+    assert not _is_canvas_authenticated_url(
+        "https://idp.uci.edu/idp/profile/SAML2/Redirect/SSO",
+        "https://canvas.eee.uci.edu",
+    )
+    assert not _is_canvas_authenticated_url(
+        "https://canvas.eee.uci.edu/login/canvas",
+        "https://canvas.eee.uci.edu",
+    )
 
 
 def test_canvas_client_loads_browser_storage_state(tmp_path: Path) -> None:

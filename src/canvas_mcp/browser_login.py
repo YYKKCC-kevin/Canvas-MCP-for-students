@@ -6,7 +6,7 @@ import getpass
 import os
 import time
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from dotenv import load_dotenv
 
@@ -76,6 +76,20 @@ def canvas_settings_url(base_url: str) -> str:
     return urljoin(f"{normalize_base_url(base_url)}/", "profile/settings")
 
 
+def _canvas_host(value: str) -> str:
+    return (urlparse(normalize_base_url(value)).hostname or "").lower()
+
+
+def _is_canvas_authenticated_url(page_url: str, base_url: str) -> bool:
+    parsed = urlparse(page_url)
+    if (parsed.hostname or "").lower() != _canvas_host(base_url):
+        return False
+
+    path = parsed.path.lower()
+    login_markers = ("/login", "/saml", "/oauth", "/auth")
+    return not any(marker in path for marker in login_markers)
+
+
 def _truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "y"}
 
@@ -124,6 +138,15 @@ def _attempt_login_fill(page, username: str, password: str, seconds: int = 45) -
         page.wait_for_timeout(1000)
 
 
+def _wait_for_canvas_session(page, base_url: str, seconds: int) -> bool:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if _is_canvas_authenticated_url(page.url, base_url):
+            return True
+        page.wait_for_timeout(1000)
+    return False
+
+
 def _launch_browser(playwright, headless: bool):
     channel = os.environ.get("CANVAS_BROWSER_CHANNEL", "").strip() or None
     try:
@@ -164,10 +187,14 @@ def main() -> None:
     storage_state = _env_path()
     login_url = canvas_settings_url(base_url)
     headless = _truthy(os.environ.get("CANVAS_HEADLESS"))
+    login_wait_seconds = int(os.environ.get("CANVAS_LOGIN_WAIT_SECONDS", "180"))
 
     print("Canvas MCP browser login")
     print(f"Opening {login_url}")
-    print("The browser will use your username/password, then wait for you to approve Duo.")
+    print(
+        "The browser will use your username/password, wait for Duo, "
+        "then save automatically once Canvas loads."
+    )
 
     try:
         with sync_playwright() as p:
@@ -175,11 +202,16 @@ def main() -> None:
             context = browser.new_context()
             page = context.new_page()
             page.goto(login_url, wait_until="domcontentloaded")
-            _attempt_login_fill(page, username, password)
-            input(
-                "\nAfter Canvas finishes loading and Duo is approved, "
-                "press Enter here to save the session..."
-            )
+            if not _is_canvas_authenticated_url(page.url, base_url):
+                _attempt_login_fill(page, username, password)
+            print(f"Waiting up to {login_wait_seconds} seconds for Canvas to load...")
+            if _wait_for_canvas_session(page, base_url, login_wait_seconds):
+                print("Detected Canvas page; saving session automatically.")
+            else:
+                input(
+                    "\nCanvas was not detected automatically. If Canvas is already "
+                    "loaded in the browser, press Enter to save the session..."
+                )
             storage_state.parent.mkdir(parents=True, exist_ok=True)
             context.storage_state(path=str(storage_state))
             browser.close()

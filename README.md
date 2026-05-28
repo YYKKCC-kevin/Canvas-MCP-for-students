@@ -71,7 +71,7 @@ Note: use the Canvas main address, not the school's temporary SSO redirect URL. 
 canvas-mcp-login
 ```
 
-The helper opens a real browser, fills your username/password, and waits while you approve Duo on your phone. Once Canvas has loaded, return to the terminal and press Enter. It saves a local browser session to `.canvas-storage-state.json`.
+The helper opens a real browser, fills your username/password, and waits while you approve Duo on your phone. Once Canvas has loaded, it saves a local browser session to `.canvas-storage-state.json` automatically. If your school's login flow redirects unusually and automatic detection times out, the helper will ask you to press Enter as a manual fallback.
 
 4. Run the MCP server:
 
