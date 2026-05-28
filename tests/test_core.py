@@ -11,6 +11,7 @@ from canvas_mcp.client import CanvasClient
 from canvas_mcp.formatting import clean_html, due_status
 from canvas_mcp.browser_login import (
     _is_canvas_authenticated_url,
+    _is_post_login_action_text,
     canvas_settings_url,
     normalize_base_url,
 )
@@ -129,6 +130,25 @@ def test_browser_login_helper_detects_authenticated_canvas_url() -> None:
         "https://canvas.eee.uci.edu/login/canvas",
         "https://canvas.eee.uci.edu",
     )
+
+
+def test_browser_login_helper_identifies_post_login_actions() -> None:
+    expected_actions = [
+        "Skip for now",
+        "暂时跳过",
+        "Yes, this is my device",
+        "是我的设备",
+        "Trust this browser",
+        "信任此浏览器",
+        "Remember this device",
+        "继续",
+    ]
+
+    for text in expected_actions:
+        assert _is_post_login_action_text(text)
+
+    assert not _is_post_login_action_text("Submit Assignment")
+    assert not _is_post_login_action_text("Delete")
 
 
 def test_canvas_client_loads_browser_storage_state(tmp_path: Path) -> None:

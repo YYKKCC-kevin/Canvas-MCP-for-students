@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import getpass
 import os
+import re
 import time
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -64,6 +65,31 @@ SUBMIT_SELECTORS = [
     "#idSIButton9",
 ]
 
+POST_LOGIN_ACTION_PATTERNS = [
+    r"^skip( for now)?$",
+    r"^not now$",
+    r"^maybe later$",
+    r"^yes,? this is my device$",
+    r"^this is my device$",
+    r"^trust this (browser|device)$",
+    r"^remember (me|this (browser|device))$",
+    r"^don't ask again$",
+    r"^continue( to canvas)?$",
+    r"^暂时跳过$",
+    r"^跳过$",
+    r"^稍后再说$",
+    r"^以后再说$",
+    r"^是我的设备$",
+    r"^这是我的设备$",
+    r"^信任此浏览器$",
+    r"^信任此设备$",
+    r"^记住我$",
+    r"^记住此浏览器$",
+    r"^记住此设备$",
+    r"^不要再询问$",
+    r"^继续$",
+]
+
 
 def normalize_base_url(value: str | None) -> str:
     base_url = (value or DEFAULT_BASE_URL).strip() or DEFAULT_BASE_URL
@@ -88,6 +114,13 @@ def _is_canvas_authenticated_url(page_url: str, base_url: str) -> bool:
     path = parsed.path.lower()
     login_markers = ("/login", "/saml", "/oauth", "/auth")
     return not any(marker in path for marker in login_markers)
+
+
+def _is_post_login_action_text(text: str) -> bool:
+    normalized = re.sub(r"\s+", " ", text).strip().lower()
+    if not normalized:
+        return False
+    return any(re.fullmatch(pattern, normalized) for pattern in POST_LOGIN_ACTION_PATTERNS)
 
 
 def _truthy(value: str | None) -> bool:
@@ -121,6 +154,49 @@ def _click_if_available(page, selectors: list[str]) -> bool:
     return True
 
 
+def _click_post_login_action_if_available(page) -> bool:
+    locators = [
+        page.locator("button"),
+        page.locator("input[type=submit]"),
+        page.locator("input[type=button]"),
+        page.locator("a"),
+    ]
+    for locator in locators:
+        try:
+            count = min(locator.count(), 30)
+        except Exception:
+            continue
+        for index in range(count):
+            item = locator.nth(index)
+            try:
+                if not item.is_visible(timeout=250):
+                    continue
+                text = _login_action_text(item)
+                if _is_post_login_action_text(text):
+                    item.click(timeout=1000)
+                    return True
+            except Exception:
+                continue
+    return False
+
+
+def _login_action_text(locator) -> str:
+    pieces = []
+    for getter in (
+        lambda: locator.inner_text(timeout=250),
+        lambda: locator.get_attribute("value", timeout=250),
+        lambda: locator.get_attribute("aria-label", timeout=250),
+        lambda: locator.get_attribute("title", timeout=250),
+    ):
+        try:
+            value = getter()
+        except Exception:
+            continue
+        if value:
+            pieces.append(value)
+    return " ".join(pieces)
+
+
 def _attempt_login_fill(page, username: str, password: str, seconds: int = 45) -> None:
     deadline = time.monotonic() + seconds
     filled_username = False
@@ -143,6 +219,7 @@ def _wait_for_canvas_session(page, base_url: str, seconds: int) -> bool:
     while time.monotonic() < deadline:
         if _is_canvas_authenticated_url(page.url, base_url):
             return True
+        _click_post_login_action_if_available(page)
         page.wait_for_timeout(1000)
     return False
 
