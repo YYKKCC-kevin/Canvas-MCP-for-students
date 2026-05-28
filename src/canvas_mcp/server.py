@@ -494,9 +494,21 @@ def tool_submit_text_assignment(
     html_body: str,
     comment: str | None = None,
     confirm_write: bool = False,
+    confirm_comment: bool = False,
 ) -> str:
-    """Submit an online text entry assignment. Requires confirm_write=True."""
-    return submit_text_assignment(course_id, assignment_id, html_body, comment, confirm_write)
+    """Submit an online text entry assignment.
+
+    Requires confirm_write=True. If comment is set, also requires
+    confirm_comment=True so agents cannot add Canvas comments unless requested.
+    """
+    return submit_text_assignment(
+        course_id,
+        assignment_id,
+        html_body,
+        comment,
+        confirm_write,
+        confirm_comment,
+    )
 
 
 @mcp.tool()
@@ -506,9 +518,21 @@ def tool_submit_url_assignment(
     url: str,
     comment: str | None = None,
     confirm_write: bool = False,
+    confirm_comment: bool = False,
 ) -> str:
-    """Submit an online URL assignment. Requires confirm_write=True."""
-    return submit_url_assignment(course_id, assignment_id, url, comment, confirm_write)
+    """Submit an online URL assignment.
+
+    Requires confirm_write=True. If comment is set, also requires
+    confirm_comment=True so agents cannot add Canvas comments unless requested.
+    """
+    return submit_url_assignment(
+        course_id,
+        assignment_id,
+        url,
+        comment,
+        confirm_write,
+        confirm_comment,
+    )
 
 
 @mcp.tool()
@@ -518,9 +542,19 @@ def tool_submit_file_assignment(
     file_path: str,
     comment: str | None = None,
     confirm_write: bool = False,
+    confirm_comment: bool = False,
 ) -> str:
     """Submit a completed local file to a Canvas online-upload assignment.
 
     This is for student-authored finished work and requires confirm_write=True.
+    If comment is set, also requires confirm_comment=True so agents cannot add
+    Canvas comments unless requested.
     """
-    return submit_file_assignment(course_id, assignment_id, file_path, comment, confirm_write)
+    return submit_file_assignment(
+        course_id,
+        assignment_id,
+        file_path,
+        comment,
+        confirm_write,
+        confirm_comment,
+    )

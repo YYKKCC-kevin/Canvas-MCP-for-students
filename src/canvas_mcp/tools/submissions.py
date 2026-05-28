@@ -20,6 +20,24 @@ def _write_confirmation(action: str, details: list[str]) -> str:
     return "\n".join(lines)
 
 
+def _comment_confirmation(action: str, details: list[str]) -> str:
+    lines = [
+        f"Comment confirmation required for `{action}`.",
+        "No changes were made.",
+        "A submission comment was provided. Comments are only sent when the user explicitly requests the exact comment.",
+    ]
+    lines.extend(f"- {detail}" for detail in details)
+    lines.append(
+        "- Re-run with `confirm_write=True` and `confirm_comment=True` to submit with this comment."
+    )
+    return "\n".join(lines)
+
+
+def _clean_comment(comment: str | None) -> str | None:
+    value = (comment or "").strip()
+    return value or None
+
+
 def get_my_submission(course_id: str, assignment_id: str) -> str:
     """Get the current user's submission state for an assignment."""
     try:
@@ -74,10 +92,12 @@ def submit_text_assignment(
     html_body: str,
     comment: str | None = None,
     confirm_write: bool = False,
+    confirm_comment: bool = False,
 ) -> str:
     """Submit an online text entry assignment. Requires confirm_write=True."""
     if not html_body.strip():
         return "Error: html_body is empty."
+    comment = _clean_comment(comment)
     details = [
         f"course_id=`{course_id}`",
         f"assignment_id=`{assignment_id}`",
@@ -89,6 +109,8 @@ def submit_text_assignment(
         details.append(f"comment={comment[:240]!r}")
     if not confirm_write:
         return _write_confirmation("submit_text_assignment", details)
+    if comment and not confirm_comment:
+        return _comment_confirmation("submit_text_assignment", details)
 
     try:
         client = get_client()
@@ -124,10 +146,12 @@ def submit_url_assignment(
     url: str,
     comment: str | None = None,
     confirm_write: bool = False,
+    confirm_comment: bool = False,
 ) -> str:
     """Submit an online URL assignment. Requires confirm_write=True."""
     if not url.strip():
         return "Error: url is empty."
+    comment = _clean_comment(comment)
     details = [
         f"course_id=`{course_id}`",
         f"assignment_id=`{assignment_id}`",
@@ -138,6 +162,8 @@ def submit_url_assignment(
         details.append(f"comment={comment[:240]!r}")
     if not confirm_write:
         return _write_confirmation("submit_url_assignment", details)
+    if comment and not confirm_comment:
+        return _comment_confirmation("submit_url_assignment", details)
 
     try:
         client = get_client()
@@ -173,11 +199,13 @@ def submit_file_assignment(
     file_path: str,
     comment: str | None = None,
     confirm_write: bool = False,
+    confirm_comment: bool = False,
 ) -> str:
     """Submit a completed local file to a Canvas online-upload assignment."""
     path = Path(file_path).expanduser()
     if not path.exists() or not path.is_file():
         return f"Error: file_path does not exist or is not a file: {path}"
+    comment = _clean_comment(comment)
 
     details = [
         f"course_id=`{course_id}`",
@@ -190,6 +218,8 @@ def submit_file_assignment(
         details.append(f"comment={comment[:240]!r}")
     if not confirm_write:
         return _write_confirmation("submit_file_assignment", details)
+    if comment and not confirm_comment:
+        return _comment_confirmation("submit_file_assignment", details)
 
     try:
         client = get_client()

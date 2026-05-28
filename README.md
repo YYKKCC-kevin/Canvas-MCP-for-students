@@ -205,7 +205,7 @@ Correctness review has four modes:
 - `tool_submit_url_assignment(...)`: submits a finished URL to Canvas.
 - `tool_submit_file_assignment(...)`: uploads a completed local file and submits it to a Canvas `online_upload` assignment.
 
-All submission tools require an explicit write confirmation. First call them with `confirm_write=False` or omit it to see a no-op dry run. Only call again with `confirm_write=True` after checking the course ID, assignment ID, file path, and submission type.
+All submission tools require an explicit write confirmation. First call them with `confirm_write=False` or omit it to see a no-op dry run. Only call again with `confirm_write=True` after checking the course ID, assignment ID, file path, and submission type. Submission comments are never sent by default; if `comment` is provided, the tool also requires `confirm_comment=True` so an assistant cannot add a Canvas comment unless the user explicitly requested that exact comment.
 
 For file uploads, the tool first tries the Canvas API. Some Canvas instances reject browser-session API upload initialization; in that case, `tool_submit_file_assignment` can fall back to the saved browser session and upload through the Canvas assignment web page. After submitting, always call `tool_get_my_submission` to verify `workflow_state=submitted`.
 

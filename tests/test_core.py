@@ -106,6 +106,37 @@ def test_submit_file_requires_explicit_confirmation(tmp_path: Path) -> None:
     assert "No changes were made." in result
 
 
+def test_submit_file_comment_requires_separate_confirmation(tmp_path: Path) -> None:
+    finished = tmp_path / "finished.pdf"
+    finished.write_bytes(b"%PDF-1.4\n")
+
+    result = submit_file_assignment(
+        "101",
+        "202",
+        str(finished),
+        comment="agent-added comment",
+        confirm_write=True,
+    )
+
+    assert "Comment confirmation required" in result
+    assert "No changes were made." in result
+    assert "confirm_comment=True" in result
+
+
+def test_submit_text_comment_requires_separate_confirmation() -> None:
+    result = submit_text_assignment(
+        "101",
+        "202",
+        "<p>answer</p>",
+        comment="agent-added comment",
+        confirm_write=True,
+    )
+
+    assert "Comment confirmation required" in result
+    assert "No changes were made." in result
+    assert "confirm_comment=True" in result
+
+
 def test_browser_login_helper_builds_settings_url() -> None:
     assert (
         canvas_settings_url("canvas.eee.uci.edu")
