@@ -137,6 +137,7 @@ def test_browser_login_helper_identifies_post_login_actions() -> None:
         "Skip for now",
         "暂时跳过",
         "Yes, this is my device",
+        "是，这是我的设备",
         "是我的设备",
         "Trust this browser",
         "信任此浏览器",
@@ -149,6 +150,7 @@ def test_browser_login_helper_identifies_post_login_actions() -> None:
 
     assert not _is_post_login_action_text("Submit Assignment")
     assert not _is_post_login_action_text("Delete")
+    assert not _is_post_login_action_text("不是，其他人会使用此设备")
 
 
 def test_canvas_client_loads_browser_storage_state(tmp_path: Path) -> None:

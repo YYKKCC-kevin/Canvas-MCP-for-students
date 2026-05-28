@@ -71,7 +71,7 @@ Note: use the Canvas main address, not the school's temporary SSO redirect URL. 
 canvas-mcp-login
 ```
 
-The helper opens a real browser, fills your username/password, and waits while you approve Duo on your phone. It also tries to click common post-login prompts such as `Skip for now`, `Trust this browser`, `Yes, this is my device`, `暂时跳过`, and `是我的设备`. Once Canvas has loaded, it saves a local browser session to `.canvas-storage-state.json` automatically. If your school's login flow redirects unusually and automatic detection times out, the helper will ask you to press Enter as a manual fallback.
+The helper opens a real browser, fills your username/password, and waits while you approve Duo on your phone. It also tries to click common post-login prompts such as `Skip for now`, `Trust this browser`, `Yes, this is my device`, `暂时跳过`, and `是，这是我的设备`, including prompts embedded in Duo/SSO frames. Once Canvas has loaded, it saves a local browser session to `.canvas-storage-state.json` automatically. If your school's login flow redirects unusually and automatic detection times out, the helper will ask you to press Enter as a manual fallback.
 
 4. Run the MCP server:
 

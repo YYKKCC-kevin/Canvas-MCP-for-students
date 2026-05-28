@@ -90,6 +90,37 @@ POST_LOGIN_ACTION_PATTERNS = [
     r"^继续$",
 ]
 
+POST_LOGIN_ACTION_COMPACT_TEXT = {
+    "skip",
+    "skipfornow",
+    "notnow",
+    "maybelater",
+    "yesthisismydevice",
+    "thisismydevice",
+    "trustthisbrowser",
+    "trustthisdevice",
+    "rememberme",
+    "rememberthisbrowser",
+    "rememberthisdevice",
+    "dontaskagain",
+    "continuetocanvas",
+    "continue",
+    "暂时跳过",
+    "跳过",
+    "稍后再说",
+    "以后再说",
+    "是我的设备",
+    "这是我的设备",
+    "是这是我的设备",
+    "信任此浏览器",
+    "信任此设备",
+    "记住我",
+    "记住此浏览器",
+    "记住此设备",
+    "不要再询问",
+    "继续",
+}
+
 
 def normalize_base_url(value: str | None) -> str:
     base_url = (value or DEFAULT_BASE_URL).strip() or DEFAULT_BASE_URL
@@ -120,7 +151,10 @@ def _is_post_login_action_text(text: str) -> bool:
     normalized = re.sub(r"\s+", " ", text).strip().lower()
     if not normalized:
         return False
-    return any(re.fullmatch(pattern, normalized) for pattern in POST_LOGIN_ACTION_PATTERNS)
+    compact = re.sub(r"[\s,，。.!！?？:：;；、'\"“”‘’]+", "", normalized)
+    return compact in POST_LOGIN_ACTION_COMPACT_TEXT or any(
+        re.fullmatch(pattern, normalized) for pattern in POST_LOGIN_ACTION_PATTERNS
+    )
 
 
 def _truthy(value: str | None) -> bool:
@@ -155,11 +189,31 @@ def _click_if_available(page, selectors: list[str]) -> bool:
 
 
 def _click_post_login_action_if_available(page) -> bool:
+    for scope in _post_login_action_scopes(page):
+        if _click_post_login_action_in_scope(scope):
+            return True
+    return False
+
+
+def _post_login_action_scopes(page) -> list:
+    scopes = [page]
+    try:
+        main_frame = getattr(page, "main_frame", None)
+        for frame in page.frames:
+            if frame is main_frame:
+                continue
+            scopes.append(frame)
+    except Exception:
+        pass
+    return scopes
+
+
+def _click_post_login_action_in_scope(scope) -> bool:
     locators = [
-        page.locator("button"),
-        page.locator("input[type=submit]"),
-        page.locator("input[type=button]"),
-        page.locator("a"),
+        scope.locator("button"),
+        scope.locator("input[type=submit]"),
+        scope.locator("input[type=button]"),
+        scope.locator("a"),
     ]
     for locator in locators:
         try:
