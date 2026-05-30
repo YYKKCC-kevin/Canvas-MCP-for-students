@@ -25,7 +25,12 @@ Local MCP server for Canvas LMS. It is designed like a safer, cleaner cousin of 
 
 This server helps Codex collect assignment context and prepare work. It does not silently submit anything. Submission tools return a dry-run confirmation unless `confirm_write=True` is provided.
 
-For academic work, use the workspace tools to understand requirements, draft your own solution, run checks, and decide what to submit.
+For homework or coursework completion requests, the assistant should first confirm two things with the user:
+
+- Whether the course or instructor allows the student to use AI tools for this assignment.
+- Whether the user wants AI assistance to complete, review, and/or submit the work.
+
+If the user confirms AI assistance is allowed and asks for completion or submission, the assistant should help complete the assignment, check the work, upload it, and submit it when the relevant submission tool has explicit write confirmation. It should not use a blanket refusal such as "I cannot help you complete this" after the user has confirmed the work is AI-permitted. If AI permission is unknown, ask for confirmation and provide learning, debugging, or review support while waiting. If the request is for an active exam, proctored assessment, hidden-answer quiz, or misconduct, redirect to allowed learning or review help instead of completing or submitting it.
 
 If you use browser login mode, keep `.env` local and private. Duo reduces risk, but a plaintext school password is still sensitive.
 
@@ -136,16 +141,17 @@ See `mcp-desktop-config-snippet.json`. Replace `/absolute/path/to/Canvas-MCP-for
 8. If the source is GitHub, inspect or clone the linked repo/file before preparing work.
 9. If the source is Gradescope, run `tool_gradescope_bridge_status`, then list Gradescope courses/assignments.
 10. `tool_prepare_homework_help_pack`
-11. Write your own solution in the generated template.
-12. Use `tool_check_my_draft` while drafting.
-13. Use `tool_review_solution_for_chat(...)` when you want the assistant to tell the user directly what is inaccurate or needs revision.
-14. Use `tool_prepare_multi_agent_review_packet(...)` when you want a solver agent and an independent reviewer agent to check the solution, then send disagreements back to the solver before the assistant gives final feedback.
-15. Use `tool_prepare_solution_review_artifact(...)` for a reusable deeper review artifact, especially if no reference answer exists.
-16. Optionally use `tool_review_solution_correctness(...)` for faster reference/rubric-based checks.
-17. Use `tool_review_submission_file(...)` on the final PDF/file before upload.
-18. Run the relevant submission tool once without `confirm_write` for a dry run.
-19. Re-run with `confirm_write=True` only after reviewing the exact file/path/assignment target.
-20. Run `tool_get_my_submission` after submission to confirm Canvas status.
+11. For homework completion requests, confirm that AI assistance is allowed for this assignment and that the user wants AI to complete/review/submit it.
+12. If confirmed, complete the work or prepare the requested draft; otherwise provide learning, debugging, or review help.
+13. Use `tool_check_my_draft` while drafting.
+14. Use `tool_review_solution_for_chat(...)` when you want the assistant to tell the user directly what is inaccurate or needs revision.
+15. Use `tool_prepare_multi_agent_review_packet(...)` when you want a solver agent and an independent reviewer agent to check the solution, then send disagreements back to the solver before the assistant gives final feedback.
+16. Use `tool_prepare_solution_review_artifact(...)` for a reusable deeper review artifact, especially if no reference answer exists.
+17. Optionally use `tool_review_solution_correctness(...)` for faster reference/rubric-based checks.
+18. Use `tool_review_submission_file(...)` on the final PDF/file before upload.
+19. Run the relevant submission tool once without `confirm_write` for a dry run.
+20. Re-run with `confirm_write=True` only after reviewing the exact file/path/assignment target.
+21. Run `tool_get_my_submission` after submission to confirm Canvas status.
 
 If `tool_resolve_assignment_source` cannot identify the true prompt, it asks the user where the assignment lives instead of guessing.
 

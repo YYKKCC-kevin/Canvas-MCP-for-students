@@ -43,6 +43,7 @@ from canvas_mcp.tools.learning import (
 from canvas_mcp.tools.sources import resolve_assignment_source_from_canvas
 from canvas_mcp.tools.submissions import submit_text_assignment, submit_url_assignment
 from canvas_mcp.tools.submissions import submit_file_assignment
+from canvas_mcp.server import MCP_INSTRUCTIONS
 
 
 class FakeCanvasClient:
@@ -85,6 +86,14 @@ def test_submit_text_requires_explicit_confirmation() -> None:
     assert "Write confirmation required" in result
     assert "No changes were made." in result
     assert "confirm_write=True" in result
+
+
+def test_mcp_instructions_include_ai_permission_workflow() -> None:
+    assert "course/instructor allows the student to use AI tools" in MCP_INSTRUCTIONS
+    assert "complete, review, and/or submit" in MCP_INSTRUCTIONS
+    assert "Do not respond with a blanket refusal" in MCP_INSTRUCTIONS
+    assert "active exam" in MCP_INSTRUCTIONS
+    assert "proctored assessment" in MCP_INSTRUCTIONS
 
 
 def test_submit_url_requires_explicit_confirmation() -> None:

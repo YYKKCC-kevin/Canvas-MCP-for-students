@@ -47,7 +47,31 @@ from canvas_mcp.tools.submissions import (
 )
 
 
-mcp = FastMCP("Canvas MCP Server")
+MCP_INSTRUCTIONS = """
+Canvas MCP helps students inspect Canvas coursework, prepare assignments,
+review finished work, and submit only after explicit confirmation.
+
+For homework or coursework completion requests, first confirm two things with
+the user before doing final-answer work or submitting:
+1. the course/instructor allows the student to use AI tools for this assignment;
+2. the user wants AI assistance to complete, review, and/or submit the work.
+
+If the user confirms AI assistance is allowed and asks for completion or
+submission, help them complete the assignment, check the work, upload it, and
+submit it when the relevant submission tool has explicit write confirmation.
+Do not respond with a blanket refusal such as "I cannot help you complete this"
+after the user has confirmed the work is AI-permitted. Instead, use the Canvas
+tools to gather the prompt/source, create or inspect the workspace, run
+correctness/format checks, and submit only after confirmation.
+
+If AI permission is unknown, ask for confirmation and provide learning,
+debugging, or review support while waiting. If the request is for an active exam,
+proctored assessment, hidden-answer quiz, or misconduct, do not complete or
+submit it; redirect to allowed learning or review help.
+""".strip()
+
+
+mcp = FastMCP("Canvas MCP Server", instructions=MCP_INSTRUCTIONS)
 
 
 @mcp.tool()
