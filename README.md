@@ -2,6 +2,120 @@
 
 Local MCP server for Canvas LMS. It is designed like a safer, cleaner cousin of the local Gradescope MCP: browser login with Duo support, optional API-token authentication, read-only tools by default, and explicit confirmation for anything that can submit work.
 
+<details>
+<summary><strong>中文</strong></summary>
+
+## Canvas MCP 中文说明
+
+Canvas MCP 是一个本地运行的 Canvas 学习助手 MCP server。它可以让 Codex、Claude 等支持 MCP 的智能体登录学校 Canvas，读取课程、公告、作业、DDL、模块资料和提交状态，并在用户明确确认后帮助上传已经完成的作业文件。
+
+### 它可以做什么
+
+- 查看当前学期 Canvas 课程，包括学生课程和 TA/助教相关课程。
+- 汇总 upcoming、overdue、unsubmitted、undated 等不同状态的作业和 DDL。
+- 查看 Canvas planner/todo、公告、discussion、syllabus、modules、lecture materials 等课程信息。
+- 打开某个 assignment 的完整说明、提交方式、due date 和当前提交状态。
+- 自动创建本地作业工作区，保存 `assignment.md`，并尽量下载 Canvas 里链接的 PDF、文档或其他附件。
+- 判断作业真正来源是在 Canvas、GitHub、Gradescope，还是用户提供的本地文件/链接。
+- 准备 multi-agent review packet，让一个 agent 完成作业，另一个 agent 独立检查，然后再整合分歧。
+- 检查最终提交文件，帮助发现上传错文件、漏题、格式不合要求、说明和答案不匹配等问题。
+- 在用户明确确认后，提交 Canvas 的 text、URL 或 file-upload assignment。
+- 如果 Canvas API 不接受文件上传初始化，可以尝试使用保存好的浏览器 session 走网页上传 fallback。
+- 可选连接本地 `gradescope-mcp`，用于查看 Gradescope 课程和作业信息。
+
+### 安全和确认机制
+
+Canvas MCP 默认偏向只读操作。任何会写入 Canvas 或提交作业的工具，都需要显式确认，例如 `confirm_write=True`。如果要添加提交评论，还需要额外的 `confirm_comment=True`，避免智能体在用户没有要求时私自添加 comment。
+
+在课程作业场景中，建议先确认两件事：
+
+- 这门课或老师是否允许使用 AI 工具辅助完成该作业。
+- 用户是否希望 AI 帮助完成、检查、上传或提交该作业。
+
+如果老师允许使用 AI，并且用户明确要求完成或提交，MCP 可以配合智能体完成作业、检查文件并提交。对于考试、隐藏答案 quiz、proctored assessment 或明显违规的请求，应转为学习、解释、复习或检查支持。
+
+### 安装
+
+```bash
+cd canvas-mcp
+python -m venv .venv
+. .venv/bin/activate
+pip install -e ".[browser]"
+python -m playwright install chromium
+```
+
+如果还想启用 Gradescope bridge：
+
+```bash
+pip install -e ".[browser,gradescope]"
+```
+
+### 配置 Canvas 登录
+
+复制 `.env.example` 为 `.env`，然后填入学校 Canvas 地址、用户名和密码：
+
+```bash
+CANVAS_BASE_URL=your_canvas_address
+# 例如:
+# CANVAS_BASE_URL=https://canvas.ucsd.edu
+# CANVAS_BASE_URL=https://canvas.eee.uci.edu
+CANVAS_AUTH_MODE=browser
+CANVAS_EMAIL=your_username_or_email
+CANVAS_PASSWORD=your_password
+CANVAS_STORAGE_STATE=.canvas-storage-state.json
+```
+
+`CANVAS_BASE_URL` 应该填写学校 Canvas 主页地址，不要填写临时 SSO redirect URL。比如使用 `https://canvas.ucsd.edu` 或 `https://canvas.eee.uci.edu`，不要使用带有 `/SAML2/Redirect/SSO?...` 的一次性跳转链接。
+
+### 第一次登录
+
+```bash
+canvas-mcp-login
+```
+
+这个命令会打开真实浏览器，自动填写账号密码，然后等待你在手机上通过 Duo。登录过程中它也会尝试自动点击常见按钮，例如 `Skip for now`、`Trust this browser`、`Yes, this is my device`、`暂时跳过`、`是，这是我的设备` 等。登录成功后，会把浏览器 session 保存到 `.canvas-storage-state.json`，以后 MCP 就可以复用这个登录状态。
+
+如果 session 过期，重新运行：
+
+```bash
+canvas-mcp-login
+```
+
+### 运行 MCP server
+
+```bash
+canvas-mcp
+```
+
+在 Codex 或 Claude 的 MCP 配置里，可以参考仓库中的 `mcp-desktop-config-snippet.json`，把路径换成你本地 clone 的 Canvas MCP 路径。
+
+### 常用流程
+
+1. 运行 `canvas-mcp-login` 完成浏览器登录和 Duo 验证。
+2. 用 `tool_list_courses` 查看课程。
+3. 用 `tool_get_todo_items` 或 `tool_get_missing_work` 汇总 DDL 和未提交作业。
+4. 用 `tool_get_assignment_details` 查看某个作业说明。
+5. 用 `tool_resolve_assignment_source` 判断真正的作业材料在哪里。
+6. 用 `tool_prepare_assignment_workspace` 下载并整理作业材料。
+7. 如果需要完成作业，先确认老师允许 AI 辅助。
+8. 用 multi-agent 工作流完成草稿和独立检查。
+9. 用 `tool_review_submission_file` 检查最终文件。
+10. 只有在用户明确说提交后，才用提交工具并设置 `confirm_write=True`。
+11. 提交后用 `tool_get_my_submission` 确认 Canvas 状态为 `submitted`。
+
+### 隐私提醒
+
+不要把下面这些文件或信息提交到 GitHub：
+
+- `.env`
+- Canvas 密码
+- API token
+- `.canvas-storage-state.json`
+- 浏览器 session 文件
+- 私人课程资料、成绩、提交文件或学生信息
+
+</details>
+
 ## What It Can Do
 
 - List active Canvas courses.
