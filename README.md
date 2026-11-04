@@ -34,7 +34,26 @@ Canvas MCP 默认偏向只读操作。任何会写入 Canvas 或提交作业的�
 
 如果老师允许使用 AI，并且用户明确要求完成或提交，MCP 可以配合智能体完成作业、检查文件并提交。对于考试、隐藏答案 quiz、proctored assessment 或明显违规的请求，应转为学习、解释、复习或检查支持。
 
-### 安装
+### 一键安装（推荐）
+
+```bash
+git clone https://github.com/YYKKCC-kevin/Canvas-MCP-for-students.git
+cd Canvas-MCP-for-students
+python3 install.py
+```
+
+安装向导会依次询问学校的 Canvas 网址、登录方式（浏览器登录或 API token）、用户名和密码（输入时不显示），然后自动：
+
+- 把配置写入本地 `.env`（仅当前用户可读，已被 `.gitignore` 排除），**不会**修改 `.env.example`；
+- 创建 `.venv` 并安装依赖，浏览器登录模式下还会安装 Chromium；
+- 询问是否现在登录一次（在手机上批准 Duo）；
+- 打印把它连接到 Claude Code / Codex 的命令。
+
+让 AI 代你安装时，请它只运行 `python3 install.py`，并在需要输入密码或 token 时自己在终端里输入，不要把密码发给 AI。重新运行向导可以更新配置，其他设置（如 Gradescope）会保留。
+
+下面是手动安装方式。
+
+### 手动安装
 
 ```bash
 cd canvas-mcp
@@ -149,6 +168,27 @@ If the user confirms AI assistance is allowed and asks for completion or submiss
 If you use browser login mode, keep `.env` local and private. Duo reduces risk, but a plaintext school password is still sensitive.
 
 The homework-help tools support coursework workflows, including assignment context gathering, structured drafting, targeted help packs, practice prompts, draft checks, and submission preparation.
+
+## Quick Install (Recommended)
+
+```bash
+git clone https://github.com/YYKKCC-kevin/Canvas-MCP-for-students.git
+cd Canvas-MCP-for-students
+python3 install.py
+```
+
+The installer asks for your school's Canvas address, the login method (browser login or API token), and your username and password (hidden while typing). It then:
+
+- writes them to a local `.env` (owner-only, git-ignored) and never touches `.env.example`;
+- creates `.venv` and installs the dependencies, plus Chromium for browser login;
+- offers to run the first login (approve Duo on your phone);
+- prints the commands to connect it to Claude Code or Codex.
+
+If an AI assistant runs the installer for you, have it run only `python3 install.py` and type the password or token yourself in the terminal. Do not paste it into the chat. Re-running the installer updates your settings and keeps unrelated ones such as Gradescope.
+
+For scripts, pass `--base-url` and `--auth-mode`, and pipe the secret with `--password-stdin` or `--token-stdin`. Secrets are deliberately not accepted as command-line arguments.
+
+Prefer to do it by hand? Follow the steps below.
 
 ## Setup
 
