@@ -7,6 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "beautifulsoup4>=4.14.0",
     "mcp>=1.26.0,<2",
+    "pypdf>=5.0,<7",
     "python-dotenv>=1.2.2",
     "requests>=2.32.0",
 ]
@@ -20,7 +21,7 @@ browser = [
     "playwright>=1.56.0",
 ]
 gradescope = [
-    "gradescopeapi>=1.7.0",
+    "gradescopeapi>=1.7.0,<2",
 ]
 
 [build-system]

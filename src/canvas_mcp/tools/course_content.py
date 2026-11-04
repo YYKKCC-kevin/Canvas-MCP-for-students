@@ -314,7 +314,10 @@ def list_course_modules(
     search_term: str | None = None,
     max_items: int = 100,
 ) -> str:
-    """List Canvas modules and module items for class/session materials."""
+    """List Canvas modules and module items for class/session materials.
+
+    The ID column holds the file ID of File items, which tool_read_course_file reads.
+    """
     if max_items <= 0:
         return "Error: max_items must be positive."
 
@@ -340,6 +343,7 @@ def list_course_modules(
                         _published(module),
                         _completion_requirement(module),
                         module.get("html_url") or "",
+                        "",
                     ]
                 )
                 continue
@@ -356,6 +360,7 @@ def list_course_modules(
                         _published(item),
                         _completion_requirement(item),
                         item.get("html_url") or item.get("external_url") or "",
+                        item.get("content_id") or item.get("page_url") or "",
                     ]
                 )
                 if len(rows) >= max_items:
@@ -369,7 +374,7 @@ def list_course_modules(
     except Exception as e:
         return f"Error listing course modules: {e}"
 
-    headers = ["Module", "Item", "Type", "Published", "Requirement", "URL"]
+    headers = ["Module", "Item", "Type", "Published", "Requirement", "URL", "ID"]
     return (
         f"## Canvas Course Modules for `{course_id}`\n\n"
         f"{markdown_table(headers, rows)}"

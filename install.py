@@ -300,6 +300,94 @@ def print_next_steps(auth_mode: str, logged_in: bool) -> None:
     )
 
 
+def verify_gradescope(email: str, password: str) -> bool:
+    """Log in once from the project venv. The password goes via the environment, not argv."""
+    code = (
+        "import os, sys\n"
+        "from gradescopeapi.classes.connection import GSConnection\n"
+        "c = GSConnection()\n"
+        "try:\n"
+        "    c.login(os.environ['GS_EMAIL'], os.environ['GS_PASSWORD'])\n"
+        "except Exception:\n"
+        "    sys.exit(2)\n"
+        "courses = c.account.get_courses()\n"
+        "print(sum(len(g) for g in courses.values()))\n"
+    )
+    env = {**os.environ, "GS_EMAIL": email, "GS_PASSWORD": password}
+    proc = subprocess.run([str(venv_python()), "-c", code], env=env, capture_output=True, text=True, cwd=ROOT)
+    if proc.returncode == 0:
+        count = proc.stdout.strip() or "?"
+        print("  [ok] " + t(f"Gradescope login works ({count} course(s) found).", f"Gradescope 登录成功（找到 {count} 门课）。"))
+        return True
+    print(
+        "  [!] "
+        + t(
+            "Gradescope rejected the login, or could not be reached. Check the email and password. "
+            "If you normally sign in with school single sign-on, first set a Gradescope password "
+            "('Forgot password' on gradescope.com), then run this step again.",
+            "Gradescope 拒绝了登录，或无法连接。请检查邮箱和密码。如果你平时用学校单点登录，"
+            "请先在 gradescope.com 用“忘记密码”设置一个 Gradescope 密码，再重新运行这一步。",
+        )
+    )
+    return False
+
+
+def setup_gradescope(args: argparse.Namespace, existing: dict[str, str], install: bool) -> int:
+    print(
+        "\n"
+        + t(
+            "Gradescope (optional): lets the assistant submit work that is due on Gradescope.",
+            "Gradescope（可选）：让助手能提交要求在 Gradescope 上交的作业。",
+        )
+    )
+    if args.gradescope_email:
+        email = args.gradescope_email.strip()
+    elif interactive():
+        email = ask(t("Gradescope email", "Gradescope 邮箱"), existing.get("GRADESCOPE_EMAIL") or None)
+    else:
+        email = ""
+    if not email:
+        die("A Gradescope email is required.", "必须提供 Gradescope 邮箱。")
+
+    if args.gradescope_password_stdin:
+        password = sys.stdin.readline().strip()
+    elif interactive():
+        password = ask_secret(t("Gradescope password", "Gradescope 密码"), "GRADESCOPE_PASSWORD" in existing)
+    else:
+        password = ""
+    if not password and "GRADESCOPE_PASSWORD" not in existing:
+        die("A Gradescope password is required.", "必须提供 Gradescope 密码。")
+
+    updates = {"GRADESCOPE_EMAIL": email}
+    if password:
+        updates["GRADESCOPE_PASSWORD"] = password
+    try:
+        text = merge_env_text(ENV_PATH.read_text(encoding="utf-8") if ENV_PATH.exists() else "", updates)
+    except ValueError as exc:
+        die(f"Cannot save that value: {exc}", f"无法保存该值：{exc}")
+    write_private(ENV_PATH, text)
+    ensure_gitignored()
+    print("  [ok] " + t(f"Saved Gradescope login to {ENV_PATH} (owner-only).", f"已把 Gradescope 登录信息保存到 {ENV_PATH}（仅当前用户可读）。"))
+
+    if install:
+        if sys.version_info < (3, 10):
+            die("Python 3.10 or newer is required.", "需要 Python 3.10 或更高版本。")
+        if not venv_python().exists():
+            venv.create(ROOT / ".venv", with_pip=True)
+        if run([venv_python(), "-m", "pip", "install", "-e", ".[browser,gradescope]"]) != 0:
+            die("pip install failed; see the output above.", "pip 安装失败，请查看上面的输出。")
+        if password:
+            verify_gradescope(email, password)
+    print(
+        "\n"
+        + t(
+            "Done. Restart your AI client so it picks up the change.",
+            "完成。请重启你的 AI 客户端使其生效。",
+        )
+    )
+    return 0
+
+
 # --------------------------------------------------------------------------
 # Main
 # --------------------------------------------------------------------------
@@ -314,6 +402,9 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--token-stdin", action="store_true", help="read the API token from stdin")
     p.add_argument("--skip-install", action="store_true", help="only write .env, skip pip/playwright")
     p.add_argument("--skip-login", action="store_true", help="do not offer to run canvas-mcp-login")
+    p.add_argument("--gradescope-only", action="store_true", help="only set up Gradescope (skip the Canvas questions)")
+    p.add_argument("--gradescope-email", help="Gradescope email (non-interactive use)")
+    p.add_argument("--gradescope-password-stdin", action="store_true", help="read the Gradescope password from stdin")
     p.add_argument("--lang", choices=("en", "zh"), help="message language (default: from locale)")
     return p.parse_args(argv)
 
@@ -324,8 +415,14 @@ def main(argv: list[str] | None = None) -> int:
     locale = (os.environ.get("LC_ALL") or os.environ.get("LANG") or "").lower()
     ZH = args.lang == "zh" or (args.lang is None and locale.startswith("zh"))
 
-    if args.password_stdin and args.token_stdin:
-        die("Use only one of --password-stdin and --token-stdin.", "--password-stdin 与 --token-stdin 只能选一个。")
+    stdin_flags = [args.password_stdin, args.token_stdin, args.gradescope_password_stdin]
+    if sum(bool(f) for f in stdin_flags) > 1:
+        die(
+            "Only one secret can be read from stdin per run. Run the Canvas and Gradescope steps separately.",
+            "每次运行只能从标准输入读取一个密码。请把 Canvas 和 Gradescope 两步分开运行。",
+        )
+    if args.gradescope_only:
+        return setup_gradescope(args, read_env_keys(ENV_PATH), install=not args.skip_install)
     if not interactive() and not (args.base_url and args.auth_mode):
         die(
             "No terminal detected. Run this in a terminal, or pass --base-url and --auth-mode "
@@ -434,6 +531,12 @@ def main(argv: list[str] | None = None) -> int:
             logged_in = run([venv_script("canvas-mcp-login")]) == 0
 
     print_next_steps(auth_mode, logged_in)
+
+    if interactive() and not args.skip_install and ask_yes_no(
+        t("\nAlso set up Gradescope, for assignments that are submitted there?", "\n是否同时设置 Gradescope（用于要求在 Gradescope 提交的作业）？"),
+        False,
+    ):
+        return setup_gradescope(args, read_env_keys(ENV_PATH), install=True)
     return 0
 
 

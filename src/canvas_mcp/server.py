@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import atexit
+
 from mcp.server.fastmcp import FastMCP
 
 from canvas_mcp.tools.assignments import (
@@ -11,6 +13,7 @@ from canvas_mcp.tools.assignments import (
     list_course_assignments,
     prepare_assignment_workspace,
 )
+from canvas_mcp.prompts import register_prompts
 from canvas_mcp.tools.courses import list_courses
 from canvas_mcp.tools.course_content import (
     get_course_info,
@@ -37,6 +40,12 @@ from canvas_mcp.tools.learning import (
     review_submission_file,
     review_solution_for_chat,
     review_solution_correctness,
+)
+from canvas_mcp.tools.gradescope_native import submit as gradescope_submit
+from canvas_mcp.tools.materials import (
+    clear_temp_materials,
+    clear_temp_materials_report,
+    read_course_file,
 )
 from canvas_mcp.tools.sources import resolve_assignment_source
 from canvas_mcp.tools.submissions import (
@@ -65,13 +74,15 @@ tools to gather the prompt/source, create or inspect the workspace, run
 correctness/format checks, and submit only after confirmation.
 
 If AI permission is unknown, ask for confirmation and provide learning,
-debugging, or review support while waiting. If the request is for an active exam,
-proctored assessment, hidden-answer quiz, or misconduct, do not complete or
-submit it; redirect to allowed learning or review help.
+debugging, or review support while waiting. Items named exam, midterm, final, or
+test on Canvas are treated like any other assignment: ask the same AI-permission
+question, and once the user confirms, help complete it.
 """.strip()
 
 
 mcp = FastMCP("Canvas MCP Server", instructions=MCP_INSTRUCTIONS)
+register_prompts(mcp)
+atexit.register(clear_temp_materials)
 
 
 @mcp.tool()
@@ -209,6 +220,41 @@ def tool_list_course_modules(
 ) -> str:
     """List Canvas modules and module items such as lecture/class materials."""
     return list_course_modules(course_id, search_term, max_items)
+
+
+@mcp.tool()
+def tool_read_course_file(
+    course_id: str,
+    file: str,
+    max_chars: int = 30000,
+    start_char: int = 0,
+) -> str:
+    """Read the text of a lecture file (PDF, PPTX, DOCX, notebook, text) from Canvas.
+
+    Normally the file is downloaded into memory and only its text is returned;
+    nothing is saved. If the file has no extractable text (scanned PDF,
+    image-only slides, an image), a temporary copy is saved and its path is
+    returned so you can open it and look at the pages. Legacy .ppt/.doc files
+    are converted with LibreOffice when it is installed.
+
+    Args:
+        course_id: Canvas course ID.
+        file: File ID (the ID column of tool_list_course_modules) or a Canvas
+            URL containing /files/<id>.
+        max_chars: Maximum characters to return in this call.
+        start_char: Offset to continue from when a previous result was cut off.
+    """
+    return read_course_file(course_id, file, max_chars, start_char)
+
+
+@mcp.tool()
+def tool_clear_temp_materials() -> str:
+    """Delete the temporary copies saved by tool_read_course_file.
+
+    Call this after you have finished viewing a saved copy. Copies are also
+    removed automatically after 30 minutes and when the server stops.
+    """
+    return clear_temp_materials_report()
 
 
 @mcp.tool()
@@ -476,7 +522,7 @@ def tool_gradescope_bridge_status(
     gradescope_mcp_path: str | None = None,
     check_login: bool = False,
 ) -> str:
-    """Check optional local gradescope-mcp integration and credentials."""
+    """Check Gradescope readiness (built-in support or a local gradescope-mcp) and credentials."""
     return gradescope_bridge_status(gradescope_mcp_path, check_login)
 
 
@@ -503,6 +549,29 @@ def tool_gradescope_get_assignment_details(
 ) -> str:
     """Get Gradescope assignment details through a local gradescope-mcp installation."""
     return gradescope_get_assignment_details(course_id, assignment_id, gradescope_mcp_path)
+
+
+@mcp.tool()
+def tool_gradescope_submit_assignment(
+    course_id: str,
+    assignment_id: str,
+    file_paths: list[str],
+    confirm_write: bool = False,
+) -> str:
+    """Submit finished files to a Gradescope assignment on the student's own account.
+
+    Use the Gradescope course and assignment IDs from tool_gradescope_list_courses
+    and tool_gradescope_list_assignments, not Canvas IDs. Requires the student's
+    Gradescope login to be saved by `python3 install.py --gradescope-only`.
+    Without confirm_write=True this only previews what would be submitted.
+
+    Args:
+        course_id: Gradescope course ID.
+        assignment_id: Gradescope assignment ID.
+        file_paths: Absolute paths of the files to upload.
+        confirm_write: Must be True, after the student agrees, to upload.
+    """
+    return gradescope_submit(course_id, assignment_id, file_paths, confirm_write)
 
 
 @mcp.tool()

@@ -9,15 +9,17 @@ from typing import Callable
 
 from dotenv import load_dotenv
 
+from canvas_mcp.tools import gradescope_native as native
+
 
 def gradescope_bridge_status(
     gradescope_mcp_path: str | None = None,
     check_login: bool = False,
 ) -> str:
-    """Check whether a local gradescope-mcp can be imported and used."""
+    """Check Gradescope readiness: an external gradescope-mcp if configured, else the built-in support."""
     ready = _prepare_gradescope_bridge(gradescope_mcp_path)
     if not ready.ok:
-        return ready.message
+        return native.status(check_login)
 
     email = os.environ.get("GRADESCOPE_EMAIL", "").strip()
     password = os.environ.get("GRADESCOPE_PASSWORD", "").strip()
@@ -51,6 +53,7 @@ def gradescope_list_courses(gradescope_mcp_path: str | None = None) -> str:
         "gradescope_mcp.tools.courses",
         "list_courses",
         gradescope_mcp_path,
+        native=native.list_courses,
     )
 
 
@@ -64,6 +67,7 @@ def gradescope_list_assignments(
         "get_assignments",
         gradescope_mcp_path,
         course_id,
+        native=native.list_assignments,
     )
 
 
@@ -79,6 +83,7 @@ def gradescope_get_assignment_details(
         gradescope_mcp_path,
         course_id,
         assignment_id,
+        native=native.assignment_details,
     )
 
 
@@ -94,10 +99,11 @@ def _call_gradescope_tool(
     function_name: str,
     gradescope_mcp_path: str | None,
     *args: str,
+    native: Callable[..., str] | None = None,
 ) -> str:
     ready = _prepare_gradescope_bridge(gradescope_mcp_path)
     if not ready.ok:
-        return ready.message
+        return native(*args) if native else ready.message
     try:
         module = __import__(module_name, fromlist=[function_name])
         fn: Callable[..., str] = getattr(module, function_name)

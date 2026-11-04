@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from canvas_mcp.auth import AuthError, get_client
 from canvas_mcp.client import CanvasApiError
 from canvas_mcp.formatting import clean_html
+from canvas_mcp.tools.gradescope_native import parse_gradescope_url
 from canvas_mcp.tools.assignments import (
     _assignment_resource_mismatch,
     _downloadable_link,
@@ -168,18 +169,46 @@ def _gradescope_source_response(
         "",
         f"- Assignment: {assignment_name}",
         "- Canvas mentions Gradescope, so the actual prompt/submission target may be on Gradescope.",
-        "- Next, use the Gradescope bridge tools to log in and inspect the matching Gradescope course/assignment.",
-        "",
-        "### Recommended Next Tools",
-        "- `tool_gradescope_bridge_status(check_login=True)`",
-        "- `tool_gradescope_list_courses()`",
-        "- `tool_gradescope_list_assignments(course_id=...)`",
-        "- `tool_gradescope_get_assignment_details(course_id=..., assignment_id=...)`",
     ]
+    direct = []
+    for link in links:
+        ids = parse_gradescope_url(link["url"])
+        if ids:
+            direct.append((link, ids))
+    if direct:
+        lines.append("- Canvas links straight to the Gradescope assignment, so no search is needed.")
+        lines.extend(["", "### Direct Gradescope Assignment"])
+        for link, (course_id, assignment_id) in direct:
+            lines.append(f"- {link['url']} -> Gradescope course_id=`{course_id}`, assignment_id=`{assignment_id}`")
+        lines.extend(
+            [
+                "",
+                "### Recommended Next Tools",
+                "- `tool_gradescope_bridge_status(check_login=True)` (if the login is not set up, the student runs `python3 install.py --gradescope-only` in a terminal)",
+                "- `tool_gradescope_get_assignment_details(course_id=..., assignment_id=...)` with the IDs above",
+                "- `tool_gradescope_submit_assignment(...)` with the same IDs, preview first",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "- Next, use the Gradescope tools to find the matching Gradescope course/assignment.",
+                "",
+                "### Recommended Next Tools",
+                "- `tool_gradescope_bridge_status(check_login=True)`",
+                "- `tool_gradescope_list_courses()`",
+                "- `tool_gradescope_list_assignments(course_id=...)`",
+                "- `tool_gradescope_get_assignment_details(course_id=..., assignment_id=...)`",
+            ]
+        )
     if links:
         lines.extend(["", "### Gradescope Links"])
         lines.extend(_format_links(links))
-    else:
+    if not direct:
+        if links:
+            lines.append("")
+            lines.append("- These links do not name a specific assignment. Ask the user which Gradescope assignment this is.")
+    if not links:
         lines.extend(["", "### Missing Link"])
         lines.append("- Canvas mentions Gradescope but does not expose a clear Gradescope URL.")
         lines.append("- Ask the user which Gradescope course/assignment corresponds to this Canvas item.")

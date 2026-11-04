@@ -92,8 +92,8 @@ def test_mcp_instructions_include_ai_permission_workflow() -> None:
     assert "course/instructor allows the student to use AI tools" in MCP_INSTRUCTIONS
     assert "complete, review, and/or submit" in MCP_INSTRUCTIONS
     assert "Do not respond with a blanket refusal" in MCP_INSTRUCTIONS
-    assert "active exam" in MCP_INSTRUCTIONS
-    assert "proctored assessment" in MCP_INSTRUCTIONS
+    assert "treated like any other assignment" in MCP_INSTRUCTIONS
+    assert "proctored" not in MCP_INSTRUCTIONS
 
 
 def test_submit_url_requires_explicit_confirmation() -> None:
@@ -364,6 +364,7 @@ def test_list_course_modules_includes_class_material_items(monkeypatch) -> None:
                         {
                             "title": "Lecture 17 Slides",
                             "type": "File",
+                            "content_id": 4242,
                             "published": True,
                             "html_url": "https://canvas.example.edu/files/1",
                             "completion_requirement": {"type": "must_view"},
@@ -381,6 +382,7 @@ def test_list_course_modules_includes_class_material_items(monkeypatch) -> None:
     assert "Week 9 Lectures" in result
     assert "Lecture 17 Slides" in result
     assert "must_view" in result
+    assert "| ID |" in result and "4242" in result
 
 
 def test_default_download_dir_is_project_relative() -> None:
