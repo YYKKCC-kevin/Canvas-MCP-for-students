@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "beautifulsoup4>=4.14.0",
+    "gradescopeapi>=1.7.0,<2",
     "mcp>=1.26.0,<2",
     "pypdf>=5.0,<7",
     "python-dotenv>=1.2.2",
@@ -19,9 +20,6 @@ canvas-mcp-login = "canvas_mcp.browser_login:main"
 [project.optional-dependencies]
 browser = [
     "playwright>=1.56.0",
-]
-gradescope = [
-    "gradescopeapi>=1.7.0,<2",
 ]
 
 [build-system]

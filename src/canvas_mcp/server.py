@@ -22,12 +22,6 @@ from canvas_mcp.tools.course_content import (
     list_course_modules,
     list_exam_items,
 )
-from canvas_mcp.tools.gradescope_bridge import (
-    gradescope_bridge_status,
-    gradescope_get_assignment_details,
-    gradescope_list_assignments,
-    gradescope_list_courses,
-)
 from canvas_mcp.tools.learning import (
     check_my_draft,
     create_homework_template,
@@ -41,7 +35,7 @@ from canvas_mcp.tools.learning import (
     review_solution_for_chat,
     review_solution_correctness,
 )
-from canvas_mcp.tools.gradescope_native import submit as gradescope_submit
+from canvas_mcp.tools import gradescope_native as gradescope
 from canvas_mcp.tools.materials import (
     clear_temp_materials,
     clear_temp_materials_report,
@@ -518,37 +512,27 @@ def tool_extract_due_and_submission_target(assignment_details: str) -> str:
 
 
 @mcp.tool()
-def tool_gradescope_bridge_status(
-    gradescope_mcp_path: str | None = None,
-    check_login: bool = False,
-) -> str:
-    """Check Gradescope readiness (built-in support or a local gradescope-mcp) and credentials."""
-    return gradescope_bridge_status(gradescope_mcp_path, check_login)
+def tool_gradescope_bridge_status(check_login: bool = False) -> str:
+    """Check whether the student's Gradescope login is set up, and optionally that it works."""
+    return gradescope.status(check_login)
 
 
 @mcp.tool()
-def tool_gradescope_list_courses(gradescope_mcp_path: str | None = None) -> str:
-    """List Gradescope courses through a local gradescope-mcp installation."""
-    return gradescope_list_courses(gradescope_mcp_path)
+def tool_gradescope_list_courses() -> str:
+    """List the student's Gradescope courses."""
+    return gradescope.list_courses()
 
 
 @mcp.tool()
-def tool_gradescope_list_assignments(
-    course_id: str,
-    gradescope_mcp_path: str | None = None,
-) -> str:
-    """List Gradescope assignments through a local gradescope-mcp installation."""
-    return gradescope_list_assignments(course_id, gradescope_mcp_path)
+def tool_gradescope_list_assignments(course_id: str) -> str:
+    """List assignments (due dates, status) for one Gradescope course."""
+    return gradescope.list_assignments(course_id)
 
 
 @mcp.tool()
-def tool_gradescope_get_assignment_details(
-    course_id: str,
-    assignment_id: str,
-    gradescope_mcp_path: str | None = None,
-) -> str:
-    """Get Gradescope assignment details through a local gradescope-mcp installation."""
-    return gradescope_get_assignment_details(course_id, assignment_id, gradescope_mcp_path)
+def tool_gradescope_get_assignment_details(course_id: str, assignment_id: str) -> str:
+    """Get one Gradescope assignment's dates, status and grade."""
+    return gradescope.assignment_details(course_id, assignment_id)
 
 
 @mcp.tool()
@@ -571,7 +555,7 @@ def tool_gradescope_submit_assignment(
         file_paths: Absolute paths of the files to upload.
         confirm_write: Must be True, after the student agrees, to upload.
     """
-    return gradescope_submit(course_id, assignment_id, file_paths, confirm_write)
+    return gradescope.submit(course_id, assignment_id, file_paths, confirm_write)
 
 
 @mcp.tool()

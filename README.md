@@ -22,7 +22,7 @@ Canvas MCP 是一个本地运行的 Canvas 学习助手 MCP server。它可以�
 - 在用户明确确认后，提交 Canvas 的 text、URL 或 file-upload assignment。
 - 如果 Canvas API 不接受文件上传初始化，可以尝试使用保存好的浏览器 session 走网页上传 fallback。
 - 读取课件正文：PDF、PPTX（含演讲者备注）、DOCX、Jupyter notebook、HTML、纯文本，用来总结 slides、整理知识点。
-- 内置 Gradescope 支持：查看你的 Gradescope 课程和作业，并在你确认后上传已完成的文件，不需要另装 `gradescope-mcp`。
+- 内置 Gradescope 支持：查看你的 Gradescope 课程和作业，并在你确认后上传已完成的文件，完全独立，不需要、也不会读取任何其他 Gradescope 项目。
 - 提供一组 `/` 斜杠命令（MCP prompts），把常用流程做成现成的工作流，例如了解作业、总结课件、考试复习与押题、提交前检查、确认后提交。
 
 ### 安全和确认机制
@@ -65,12 +65,6 @@ python -m venv .venv
 . .venv/bin/activate
 pip install -e ".[browser]"
 python -m playwright install chromium
-```
-
-如果还想启用 Gradescope bridge：
-
-```bash
-pip install -e ".[browser,gradescope]"
 ```
 
 ### 配置 Canvas 登录
@@ -168,8 +162,6 @@ python3 install.py --gradescope-only
 - 上传文件不会标注哪几页对应哪道题。需要标注的作业，请在提交页面上自己完成。
 - 只支持文件上传。AI 不会改成绩、延期，也不会操作教师账号。
 
-如果你已经单独装了 `gradescope-mcp`（在 `.env` 里设置 `GRADESCOPE_MCP_PATH`，或克隆在 `~/gradescope-mcp`），查询类工具会优先使用它；提交始终使用内置支持。
-
 ### 常用流程
 
 1. 运行 `canvas-mcp-login` 完成浏览器登录和 Duo 验证。
@@ -214,7 +206,7 @@ python3 install.py --gradescope-only
 - Prepare multi-agent review packets for solver-agent, reviewer-agent, and disagreement-resolution workflows.
 - Run quick correctness checks when a reference answer or rubric is available.
 - Read lecture files (PDF, PPTX with speaker notes, DOCX, notebooks, HTML, text) in memory to summarize slides and build study notes.
-- List your Gradescope courses and assignments and upload a finished file, using built-in support that needs no separate `gradescope-mcp`.
+- List your Gradescope courses and assignments and upload a finished file, fully self-contained: it needs no other Gradescope project and never reads one.
 - Offer slash-command prompts for the common workflows, including exam study notes with evidence-based question predictions.
 - Submit completed student-authored text, URL, or file-upload assignments only when `confirm_write=True`.
 - Fall back to browser-based Canvas upload when Canvas rejects API file-upload initialization.
@@ -267,11 +259,7 @@ pip install -e ".[browser]"
 python -m playwright install chromium
 ```
 
-If you also want the optional Gradescope bridge in the same environment:
 
-```bash
-pip install -e ".[browser,gradescope]"
-```
 
 2. Copy `.env.example` to `.env` and fill in your Canvas login:
 
@@ -342,7 +330,7 @@ python3 install.py --gradescope-only
 
 The installer asks for your Gradescope email and password (hidden while typing), saves them to the local `.env`, installs the `gradescopeapi` package, and checks that the login works. You can also answer yes to the Gradescope question at the end of a normal `python3 install.py` run. Restart your AI client afterwards.
 
-Your Gradescope password is only ever typed into the installer. No tool accepts a password, so it cannot end up in a chat. If an assistant asks you to paste it, run the installer instead.
+Your Gradescope password is only ever typed into the installer. No tool accepts a password, so it cannot end up in a chat. If an assistant asks you to paste it, run the installer instead. If the login is missing when you ask for a Gradescope action, the assistant starts the installer in a terminal tab for you (or tells you the command); you type the password there, and no restart is needed.
 
 When a Canvas assignment is submitted on Gradescope, the `submit_assignment` prompt finds the matching Gradescope assignment, asks you to confirm it, previews exactly what will be uploaded (with a warning if the deadline has passed), and uploads only after you say yes.
 
@@ -351,8 +339,6 @@ Limits to know about:
 - Login uses a Gradescope email and password. If you normally sign in with school single sign-on, first set a Gradescope password with "Forgot password" on gradescope.com.
 - Uploading a file does not mark which pages answer which questions. For assignments that need that, finish it on the submission page.
 - Only file uploads are supported. The assistant never changes grades, extensions, or anything on an instructor account.
-
-If you already have a separate `gradescope-mcp` project (`GRADESCOPE_MCP_PATH` in `.env`, or a clone at `~/gradescope-mcp`), the lookup tools use it. Submission always uses the built-in support.
 
 ## Codex MCP Config Snippet
 
@@ -386,7 +372,7 @@ Safety rules are written into the prompts themselves: no AI-written work without
 6. `tool_resolve_assignment_source`
 7. If the source is Canvas, run `tool_prepare_assignment_workspace`.
 8. If the source is GitHub, inspect or clone the linked repo/file before preparing work.
-9. If the source is Gradescope, run `tool_gradescope_bridge_status`, then list Gradescope courses/assignments.
+9. If the source is Gradescope, run `tool_gradescope_bridge_status` (the name is historical: it only checks your Gradescope login), then list Gradescope courses/assignments.
 10. `tool_prepare_homework_help_pack`
 11. For homework completion requests, confirm that AI assistance is allowed for this assignment and that the user wants AI to complete/review/submit it.
 12. If confirmed, complete the work or prepare the requested draft; otherwise provide learning, debugging, or review help.
@@ -468,7 +454,7 @@ Canvas assignments that say to submit on Gradescope should be submitted through 
 
 ## Gradescope Tools
 
-- `tool_gradescope_bridge_status(...)`: checks Gradescope readiness (built-in support, or a local `gradescope-mcp` if configured) and optionally verifies login.
+- `tool_gradescope_bridge_status(...)`: checks whether your Gradescope login is set up and optionally that it works.
 - `tool_gradescope_list_courses(...)`: lists your Gradescope courses.
 - `tool_gradescope_list_assignments(...)`: lists assignments for one Gradescope course, with due and late-due dates and status.
 - `tool_gradescope_get_assignment_details(...)`: reads one Gradescope assignment's details.

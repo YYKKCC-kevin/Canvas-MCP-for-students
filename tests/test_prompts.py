@@ -114,7 +114,8 @@ def test_submit_prompt_covers_gradescope_without_taking_passwords():
     text = prompts.submit_assignment("1", "2")
     assert "tool_gradescope_submit_assignment" in text
     assert "install.py --gradescope-only" in text
-    assert "not to paste my Gradescope password" in text
+    assert "not to paste the password into this chat" in text
+    assert "if you can open a terminal" in text
     assert "Gradescope IDs differ from Canvas IDs" in text
     # preview first, real upload only after the student's yes
     assert text.index("without confirm_write") < text.index("Only after my yes, call it again")

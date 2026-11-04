@@ -7,6 +7,9 @@ their own account: look up their courses and assignments, and upload a file.
 Credentials come from GRADESCOPE_EMAIL and GRADESCOPE_PASSWORD in `.env`
 (written by `python3 install.py --gradescope-only`). They are never accepted
 as tool arguments, so they cannot end up in a chat transcript.
+
+This module is fully self-contained. It never reads another project's files
+(for example a separate gradescope-mcp folder).
 """
 
 from __future__ import annotations
@@ -21,20 +24,52 @@ from urllib.parse import urlparse
 from canvas_mcp.formatting import markdown_table
 
 SETUP_HINT = (
-    "Run `python3 install.py --gradescope-only` in a terminal to save your Gradescope login. "
-    "Do not paste your password into the chat."
+    "Gradescope is not set up yet. It is set up by running `python3 install.py --gradescope-only` "
+    "in the Canvas MCP project folder: it asks for the Gradescope email and password (hidden while "
+    "typing), saves them locally, and checks the login. If you can open a terminal tab for the "
+    "student, start that command there and tell them to type the password into that terminal. "
+    "Otherwise ask them to run it themselves. Never ask for the password in the chat, and restart "
+    "is not needed afterwards."
 )
 INSTALL_HINT = (
-    "The `gradescopeapi` package is not installed. In the project folder run: "
-    "`.venv/bin/python -m pip install -e \".[gradescope]\"` "
-    "(or `python3 install.py --gradescope-only`)."
+    "The `gradescopeapi` package is missing. Run `python3 install.py --gradescope-only` in the "
+    "Canvas MCP project folder; it installs the package and asks for the Gradescope login."
 )
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 _connection: Any = None
 
 
 class GradescopeError(Exception):
     """A problem the student can act on."""
+
+
+def _env_files() -> list[pathlib.Path]:
+    """This project's own .env files (never another project's)."""
+    return [PROJECT_ROOT / ".env", pathlib.Path.cwd() / ".env"]
+
+
+def _credentials() -> tuple[str, str]:
+    """Gradescope email and password from the environment, else from this project's .env.
+
+    Re-reading the file means a login saved by the installer works without
+    restarting the server.
+    """
+    email = os.environ.get("GRADESCOPE_EMAIL", "").strip()
+    password = os.environ.get("GRADESCOPE_PASSWORD", "").strip()
+    if email and password:
+        return email, password
+    from dotenv import dotenv_values
+
+    for path in _env_files():
+        if not path.is_file():
+            continue
+        values = dotenv_values(path)
+        email = email or (values.get("GRADESCOPE_EMAIL") or "").strip()
+        password = password or (values.get("GRADESCOPE_PASSWORD") or "").strip()
+        if email and password:
+            break
+    return email, password
 
 
 def _get_connection():
@@ -46,10 +81,9 @@ def _get_connection():
     except ImportError as exc:
         raise GradescopeError(INSTALL_HINT) from exc
 
-    email = os.environ.get("GRADESCOPE_EMAIL", "").strip()
-    password = os.environ.get("GRADESCOPE_PASSWORD", "").strip()
+    email, password = _credentials()
     if not email or not password:
-        raise GradescopeError(f"Gradescope login is not set up. {SETUP_HINT}")
+        raise GradescopeError(SETUP_HINT)
 
     conn = GSConnection()
     try:
@@ -122,10 +156,9 @@ def status(check_login: bool = False) -> str:
         library = "installed"
     except ImportError:
         library = "missing"
-    email = os.environ.get("GRADESCOPE_EMAIL", "").strip()
-    password = os.environ.get("GRADESCOPE_PASSWORD", "").strip()
+    email, password = _credentials()
     lines = [
-        "## Gradescope (built-in)",
+        "## Gradescope",
         "",
         f"- gradescopeapi package: {library}",
         f"- GRADESCOPE_EMAIL: {'set' if email else 'missing'}",
@@ -283,10 +316,15 @@ def submit(
 
     if not url:
         return "\n".join(
-            ["Upload failed. Nothing was submitted. Possible reasons:",
-             "- the assignment is past its due date or not open for submissions",
-             "- this assignment type does not take file uploads",
-             "- you are not enrolled as a student in this course", "", *summary]
+            ["Upload failed. Nothing was submitted. Gradescope does not say why, so these are only "
+             "possible reasons, not a diagnosis:",
+             "- the assignment is past its due date, or not open for submissions",
+             "- the file type is not accepted (many assignments take only PDF)",
+             "- this assignment type does not take file uploads (online or code assignments)",
+             "- you are not enrolled as a student in this course",
+             "Tell the student it failed and that the reason is unknown; do not state one as fact. "
+             "If the deadline is still open, check the file type, then try the upload on gradescope.com.",
+             "", *summary]
         )
 
     after = ""

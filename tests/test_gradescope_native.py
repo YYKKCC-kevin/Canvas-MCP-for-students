@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from canvas_mcp.tools import gradescope_bridge, gradescope_native as gs
+from canvas_mcp.tools import gradescope_native as gs
 
 PASSWORD = "s3cret-password-xyz"
 UTC = dt.timezone.utc
@@ -101,16 +101,18 @@ def pdf(tmp_path):
 # ---- setup problems are actionable and never leak the password ---------------
 
 
-def test_missing_credentials_point_to_the_installer_and_not_the_chat(monkeypatch):
+def test_missing_credentials_point_to_the_installer_and_not_the_chat(monkeypatch, tmp_path):
     monkeypatch.delenv("GRADESCOPE_PASSWORD")
+    monkeypatch.setattr(gs, "_env_files", lambda: [tmp_path / "none.env"])
     out = gs.list_courses()
     assert "python3 install.py --gradescope-only" in out
-    assert "Do not paste your password" in out
+    assert "Never ask for the password in the chat" in out
 
 
 def test_missing_library_gives_install_command(monkeypatch):
     monkeypatch.setitem(sys.modules, "gradescopeapi.classes.connection", None)
-    assert "gradescopeapi" in gs.list_courses() and "pip install" in gs.list_courses()
+    out = gs.list_courses()
+    assert "gradescopeapi" in out and "install.py --gradescope-only" in out
 
 
 def test_rejected_login_mentions_sso_accounts():
@@ -167,6 +169,7 @@ def test_failed_upload_says_nothing_was_submitted(pdf, fake_gradescopeapi):
     fake_gradescopeapi.fn.result = None
     out = gs.submit("111", "222", [pdf], confirm_write=True)
     assert "Nothing was submitted" in out and "past its due date" in out
+    assert "file type" in out and "do not state one as fact" in out
 
 
 def test_unknown_assignment_blocks_the_upload(pdf, fake_gradescopeapi):
@@ -188,20 +191,46 @@ def test_past_deadline_is_warned_about_in_the_preview(pdf):
     assert "Warning" not in gs.submit("111", "222", [pdf])
 
 
-# ---- bridge falls back to the built-in support ------------------------------------
+# ---- independence from any separate gradescope-mcp ---------------------------------
 
 
-@pytest.fixture
-def no_external_gradescope_mcp(monkeypatch):
-    monkeypatch.setattr(gradescope_bridge, "_resolve_gradescope_mcp_path", lambda path=None: None)
+def test_server_tools_use_only_the_built_in_support():
+    import asyncio
+
+    from canvas_mcp.server import mcp
+
+    tools = {t.name: t for t in asyncio.run(mcp.list_tools())}
+    for name in (
+        "tool_gradescope_bridge_status",
+        "tool_gradescope_list_courses",
+        "tool_gradescope_list_assignments",
+        "tool_gradescope_get_assignment_details",
+        "tool_gradescope_submit_assignment",
+    ):
+        assert "gradescope_mcp_path" not in tools[name].inputSchema["properties"], name
+    assert not (Path(__file__).resolve().parents[1] / "src/canvas_mcp/tools/gradescope_bridge.py").exists()
 
 
-def test_bridge_tools_work_without_a_separate_gradescope_mcp(no_external_gradescope_mcp):
-    assert "STATS 120A" in gradescope_bridge.gradescope_list_courses()
-    assert "Homework 3" in gradescope_bridge.gradescope_list_assignments("111")
-    assert "Homework 3" in gradescope_bridge.gradescope_get_assignment_details("111", "222")
-    status = gradescope_bridge.gradescope_bridge_status(check_login=True)
-    assert "Login check: OK" in status
+def test_login_saved_in_the_projects_own_env_works_without_restart(monkeypatch, tmp_path):
+    monkeypatch.delenv("GRADESCOPE_EMAIL", raising=False)
+    monkeypatch.delenv("GRADESCOPE_PASSWORD", raising=False)
+    env = tmp_path / ".env"
+    env.write_text(f"GRADESCOPE_EMAIL=me@uci.edu\nGRADESCOPE_PASSWORD={PASSWORD}\n")
+    monkeypatch.setattr(gs, "_env_files", lambda: [env])
+    gs.reset_connection()
+    assert "STATS 120A" in gs.list_courses()
+    assert FakeConnection.logins[-1] == ("me@uci.edu", PASSWORD)
+
+
+def test_missing_login_tells_the_assistant_how_to_set_it_up(monkeypatch, tmp_path):
+    monkeypatch.delenv("GRADESCOPE_EMAIL", raising=False)
+    monkeypatch.delenv("GRADESCOPE_PASSWORD", raising=False)
+    monkeypatch.setattr(gs, "_env_files", lambda: [tmp_path / "nothing.env"])
+    gs.reset_connection()
+    text = gs.list_courses()
+    assert "install.py --gradescope-only" in text
+    assert "open a terminal tab" in text
+    assert "Never ask for the password in the chat" in text
 
 
 # ---- direct links from Canvas skip the search -------------------------------------

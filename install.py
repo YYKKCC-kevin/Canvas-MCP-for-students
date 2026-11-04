@@ -374,7 +374,7 @@ def setup_gradescope(args: argparse.Namespace, existing: dict[str, str], install
             die("Python 3.10 or newer is required.", "需要 Python 3.10 或更高版本。")
         if not venv_python().exists():
             venv.create(ROOT / ".venv", with_pip=True)
-        if run([venv_python(), "-m", "pip", "install", "-e", ".[browser,gradescope]"]) != 0:
+        if run([venv_python(), "-m", "pip", "install", "-e", ".[browser]"]) != 0:
             die("pip install failed; see the output above.", "pip 安装失败，请查看上面的输出。")
         if password:
             verify_gradescope(email, password)
