@@ -215,11 +215,11 @@ def test_login_saved_in_the_projects_own_env_works_without_restart(monkeypatch, 
     monkeypatch.delenv("GRADESCOPE_EMAIL", raising=False)
     monkeypatch.delenv("GRADESCOPE_PASSWORD", raising=False)
     env = tmp_path / ".env"
-    env.write_text(f"GRADESCOPE_EMAIL=me@uci.edu\nGRADESCOPE_PASSWORD={PASSWORD}\n")
+    env.write_text(f"GRADESCOPE_EMAIL=student@example.edu\nGRADESCOPE_PASSWORD={PASSWORD}\n")
     monkeypatch.setattr(gs, "_env_files", lambda: [env])
     gs.reset_connection()
     assert "STATS 120A" in gs.list_courses()
-    assert FakeConnection.logins[-1] == ("me@uci.edu", PASSWORD)
+    assert FakeConnection.logins[-1] == ("student@example.edu", PASSWORD)
 
 
 def test_missing_login_tells_the_assistant_how_to_set_it_up(monkeypatch, tmp_path):

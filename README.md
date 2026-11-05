@@ -73,14 +73,16 @@ python -m playwright install chromium
 
 ```bash
 CANVAS_BASE_URL=your_canvas_address
-# 例如: CANVAS_BASE_URL=https://canvas.yourschool.edu
+# 例如:
+# CANVAS_BASE_URL=https://canvas.ucsd.edu
+# CANVAS_BASE_URL=https://canvas.eee.uci.edu
 CANVAS_AUTH_MODE=browser
 CANVAS_EMAIL=your_username_or_email
 CANVAS_PASSWORD=your_password
 CANVAS_STORAGE_STATE=.canvas-storage-state.json
 ```
 
-`CANVAS_BASE_URL` 应该填写学校 Canvas 主页地址，不要填写临时 SSO redirect URL。比如使用 `https://canvas.yourschool.edu` 这样的主页地址，不要使用带有 `/SAML2/Redirect/SSO?...` 的一次性跳转链接。
+`CANVAS_BASE_URL` 应该填写学校 Canvas 主页地址，不要填写临时 SSO redirect URL。比如使用 `https://canvas.ucsd.edu` 或 `https://canvas.eee.uci.edu` 这样的主页地址，不要使用带有 `/SAML2/Redirect/SSO?...` 的一次性跳转链接。
 
 ### 第一次登录
 
@@ -264,7 +266,7 @@ python -m playwright install chromium
 ```bash
 # Canvas credentials
 CANVAS_BASE_URL=your_canvas_address
-# Example: CANVAS_BASE_URL=https://canvas.yourschool.edu
+# Examples: CANVAS_BASE_URL=https://canvas.ucsd.edu or https://canvas.eee.uci.edu
 CANVAS_AUTH_MODE=browser
 CANVAS_EMAIL=your_username_or_email
 CANVAS_PASSWORD=your_password
@@ -273,7 +275,7 @@ CANVAS_STORAGE_STATE=.canvas-storage-state.json
 
 `CANVAS_BASE_URL` should be your school's Canvas website. `CANVAS_EMAIL` can be your username, school email, or whatever your Canvas/SSO login page expects.
 
-Note: use the Canvas main address, not the school's temporary SSO redirect URL. For example, use `https://canvas.yourschool.edu`, not a URL containing `/SAML2/Redirect/SSO?...`; those redirect links are often one-time or expired and can confuse the login helper.
+Note: use the Canvas main address, not the school's temporary SSO redirect URL. For example, use `https://canvas.ucsd.edu` or `https://canvas.eee.uci.edu`, not a URL containing `/SAML2/Redirect/SSO?...`; those redirect links are often one-time or expired and can confuse the login helper.
 
 3. Log in once through the browser helper:
 
@@ -297,7 +299,7 @@ Canvas API tokens are more reliable than browser sessions. If you prefer token m
 
 ```bash
 CANVAS_BASE_URL=your_canvas_address
-# Example: CANVAS_BASE_URL=https://canvas.yourschool.edu
+# Examples: CANVAS_BASE_URL=https://canvas.ucsd.edu or https://canvas.eee.uci.edu
 CANVAS_ACCESS_TOKEN=paste_your_canvas_access_token_here
 ```
 
@@ -305,7 +307,7 @@ Use the same Canvas main address rule in token mode: `CANVAS_BASE_URL` should be
 
 To create a token:
 
-1. Open your Canvas website in a browser, for example `https://canvas.yourschool.edu`.
+1. Open your Canvas website in a browser, for example `https://canvas.eee.uci.edu`.
 2. Log in normally with your school Canvas/SSO username and password.
 3. Click `Account`.
 4. Click `Settings`.
