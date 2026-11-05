@@ -12,9 +12,10 @@ from urllib.parse import urljoin, urlparse
 from dotenv import load_dotenv
 
 
-DEFAULT_BASE_URL = "https://canvas.eee.uci.edu"
 DEFAULT_STORAGE_STATE = ".canvas-storage-state.json"
 
+# Login-page field selectors for the common SSO systems. The helper tries each one in
+# turn, so this list is a generic fallback for many schools, not tied to one school.
 USERNAME_SELECTORS = [
     'input[name="pseudonym_session[unique_id]"]',
     'input[name="username"]',
@@ -123,7 +124,12 @@ POST_LOGIN_ACTION_COMPACT_TEXT = {
 
 
 def normalize_base_url(value: str | None) -> str:
-    base_url = (value or DEFAULT_BASE_URL).strip() or DEFAULT_BASE_URL
+    base_url = (value or "").strip()
+    if not base_url:
+        raise ValueError(
+            "CANVAS_BASE_URL is not set. Set it to your school's Canvas address, "
+            "e.g. https://canvas.yourschool.edu (run `python3 install.py` to set it up)."
+        )
     if not base_url.startswith(("http://", "https://")):
         base_url = f"https://{base_url}"
     return base_url.rstrip("/")
@@ -303,7 +309,10 @@ def main() -> None:
             "  python -m playwright install chromium"
         ) from exc
 
-    base_url = normalize_base_url(os.environ.get("CANVAS_BASE_URL"))
+    try:
+        base_url = normalize_base_url(os.environ.get("CANVAS_BASE_URL"))
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     username = (
         os.environ.get("CANVAS_EMAIL", "").strip()
         or os.environ.get("CANVAS_USERNAME", "").strip()

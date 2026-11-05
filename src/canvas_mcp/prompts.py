@@ -60,7 +60,7 @@ GRADESCOPE_STEPS = (
     "If the assignment is actually submitted on Gradescope (the "
     "tool_resolve_assignment_source or assignment text says so), submit it "
     "there instead of steps 4 and 5, and the same gates apply:\n"
-    "a. Call tool_gradescope_bridge_status. If the Gradescope login is not "
+    "a. Call tool_gradescope_status. If the Gradescope login is not "
     "set up, run `python3 install.py --gradescope-only` in the Canvas MCP "
     "project folder for me if you can open a terminal (otherwise tell me to "
     "run it), tell me to type my Gradescope email and password into that "

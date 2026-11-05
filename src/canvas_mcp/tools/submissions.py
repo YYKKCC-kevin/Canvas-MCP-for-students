@@ -281,7 +281,10 @@ def _submit_file_assignment_via_browser(
     except ImportError:
         return None
 
-    base_url = normalize_base_url(os.environ.get("CANVAS_BASE_URL"))
+    try:
+        base_url = normalize_base_url(os.environ.get("CANVAS_BASE_URL"))
+    except ValueError:
+        return None
     assignment_url = f"{base_url}/courses/{course_id}/assignments/{assignment_id}"
     headless = os.environ.get("CANVAS_SUBMIT_HEADLESS", "true").lower() not in {
         "0",

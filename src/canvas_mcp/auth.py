@@ -37,7 +37,7 @@ def get_client() -> CanvasClient:
     storage_state = os.environ.get("CANVAS_STORAGE_STATE", ".canvas-storage-state.json").strip()
 
     if not base_url:
-        raise AuthError("Missing CANVAS_BASE_URL. Example: https://canvas.eee.uci.edu")
+        raise AuthError("Missing CANVAS_BASE_URL. Example: https://canvas.yourschool.edu")
 
     if token:
         key = (base_url, "token", token)

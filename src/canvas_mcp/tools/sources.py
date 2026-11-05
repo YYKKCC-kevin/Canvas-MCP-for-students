@@ -184,7 +184,7 @@ def _gradescope_source_response(
             [
                 "",
                 "### Recommended Next Tools",
-                "- `tool_gradescope_bridge_status(check_login=True)` (if the login is not set up, the student runs `python3 install.py --gradescope-only` in a terminal)",
+                "- `tool_gradescope_status(check_login=True)` (if the login is not set up, the student runs `python3 install.py --gradescope-only` in a terminal)",
                 "- `tool_gradescope_get_assignment_details(course_id=..., assignment_id=...)` with the IDs above",
                 "- `tool_gradescope_submit_assignment(...)` with the same IDs, preview first",
             ]
@@ -195,7 +195,7 @@ def _gradescope_source_response(
                 "- Next, use the Gradescope tools to find the matching Gradescope course/assignment.",
                 "",
                 "### Recommended Next Tools",
-                "- `tool_gradescope_bridge_status(check_login=True)`",
+                "- `tool_gradescope_status(check_login=True)`",
                 "- `tool_gradescope_list_courses()`",
                 "- `tool_gradescope_list_assignments(course_id=...)`",
                 "- `tool_gradescope_get_assignment_details(course_id=..., assignment_id=...)`",

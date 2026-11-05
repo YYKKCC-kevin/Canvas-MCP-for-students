@@ -178,8 +178,8 @@ def prompt_base_url(current: str) -> str:
     while True:
         raw = ask(
             t(
-                "Your school's Canvas address, e.g. canvas.ucsd.edu or canvas.eee.uci.edu",
-                "学校的 Canvas 网址，例如 canvas.ucsd.edu 或 canvas.eee.uci.edu",
+                "Your school's Canvas address, e.g. canvas.yourschool.edu",
+                "学校的 Canvas 网址，例如 canvas.yourschool.edu",
             ),
             current or None,
         )
@@ -395,7 +395,7 @@ def setup_gradescope(args: argparse.Namespace, existing: dict[str, str], install
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Interactive Canvas MCP installer / Canvas MCP 安装向导")
-    p.add_argument("--base-url", help="Canvas home page, e.g. https://canvas.ucsd.edu")
+    p.add_argument("--base-url", help="Canvas home page, e.g. https://canvas.yourschool.edu")
     p.add_argument("--auth-mode", choices=("browser", "token"), help="browser login (Duo) or API token")
     p.add_argument("--username", help="Canvas username or school email (browser mode)")
     p.add_argument("--password-stdin", action="store_true", help="read the password from stdin")

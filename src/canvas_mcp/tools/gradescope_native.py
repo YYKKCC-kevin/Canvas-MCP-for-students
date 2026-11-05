@@ -1,15 +1,14 @@
 """Built-in Gradescope support: list courses and assignments, and submit files.
 
-This works on its own with the `gradescopeapi` package, so a separate
-gradescope-mcp project is not required. It only does what a student does on
-their own account: look up their courses and assignments, and upload a file.
+This works on its own with the `gradescopeapi` package. It only does what a
+student does on their own account: look up their courses and assignments, and
+upload a file.
 
 Credentials come from GRADESCOPE_EMAIL and GRADESCOPE_PASSWORD in `.env`
 (written by `python3 install.py --gradescope-only`). They are never accepted
 as tool arguments, so they cannot end up in a chat transcript.
 
-This module is fully self-contained. It never reads another project's files
-(for example a separate gradescope-mcp folder).
+This module is self-contained and reads only this project's own settings.
 """
 
 from __future__ import annotations

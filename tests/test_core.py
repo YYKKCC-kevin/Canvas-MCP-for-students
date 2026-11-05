@@ -153,8 +153,13 @@ def test_browser_login_helper_builds_settings_url() -> None:
     )
 
 
-def test_browser_login_helper_normalizes_default_url() -> None:
-    assert normalize_base_url(None) == "https://canvas.eee.uci.edu"
+def test_browser_login_helper_has_no_school_specific_default() -> None:
+    import pytest
+
+    for missing in (None, "", "   "):
+        with pytest.raises(ValueError, match="CANVAS_BASE_URL is not set"):
+            normalize_base_url(missing)
+    assert normalize_base_url("canvas.example.edu/") == "https://canvas.example.edu"
 
 
 def test_browser_login_helper_detects_authenticated_canvas_url() -> None:
@@ -698,7 +703,7 @@ def test_assignment_source_resolver_detects_gradescope_link() -> None:
     )
 
     assert "Assignment Source Likely Gradescope" in result
-    assert "tool_gradescope_bridge_status" in result
+    assert "tool_gradescope_status" in result
     assert "https://www.gradescope.com/courses/123/assignments/456" in result
 
 

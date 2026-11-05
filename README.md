@@ -73,16 +73,14 @@ python -m playwright install chromium
 
 ```bash
 CANVAS_BASE_URL=your_canvas_address
-# 例如:
-# CANVAS_BASE_URL=https://canvas.ucsd.edu
-# CANVAS_BASE_URL=https://canvas.eee.uci.edu
+# 例如: CANVAS_BASE_URL=https://canvas.yourschool.edu
 CANVAS_AUTH_MODE=browser
 CANVAS_EMAIL=your_username_or_email
 CANVAS_PASSWORD=your_password
 CANVAS_STORAGE_STATE=.canvas-storage-state.json
 ```
 
-`CANVAS_BASE_URL` 应该填写学校 Canvas 主页地址，不要填写临时 SSO redirect URL。比如使用 `https://canvas.ucsd.edu` 或 `https://canvas.eee.uci.edu`，不要使用带有 `/SAML2/Redirect/SSO?...` 的一次性跳转链接。
+`CANVAS_BASE_URL` 应该填写学校 Canvas 主页地址，不要填写临时 SSO redirect URL。比如使用 `https://canvas.yourschool.edu` 这样的主页地址，不要使用带有 `/SAML2/Redirect/SSO?...` 的一次性跳转链接。
 
 ### 第一次登录
 
@@ -266,7 +264,7 @@ python -m playwright install chromium
 ```bash
 # Canvas credentials
 CANVAS_BASE_URL=your_canvas_address
-# Example: CANVAS_BASE_URL=https://canvas.eee.uci.edu
+# Example: CANVAS_BASE_URL=https://canvas.yourschool.edu
 CANVAS_AUTH_MODE=browser
 CANVAS_EMAIL=your_username_or_email
 CANVAS_PASSWORD=your_password
@@ -275,7 +273,7 @@ CANVAS_STORAGE_STATE=.canvas-storage-state.json
 
 `CANVAS_BASE_URL` should be your school's Canvas website. `CANVAS_EMAIL` can be your username, school email, or whatever your Canvas/SSO login page expects.
 
-Note: use the Canvas main address, not the school's temporary SSO redirect URL. For example, use `https://canvas.ucsd.edu` or `https://canvas.eee.uci.edu`, not a URL containing `/SAML2/Redirect/SSO?...`; those redirect links are often one-time or expired and can confuse the login helper.
+Note: use the Canvas main address, not the school's temporary SSO redirect URL. For example, use `https://canvas.yourschool.edu`, not a URL containing `/SAML2/Redirect/SSO?...`; those redirect links are often one-time or expired and can confuse the login helper.
 
 3. Log in once through the browser helper:
 
@@ -299,7 +297,7 @@ Canvas API tokens are more reliable than browser sessions. If you prefer token m
 
 ```bash
 CANVAS_BASE_URL=your_canvas_address
-# Example: CANVAS_BASE_URL=https://canvas.eee.uci.edu
+# Example: CANVAS_BASE_URL=https://canvas.yourschool.edu
 CANVAS_ACCESS_TOKEN=paste_your_canvas_access_token_here
 ```
 
@@ -307,7 +305,7 @@ Use the same Canvas main address rule in token mode: `CANVAS_BASE_URL` should be
 
 To create a token:
 
-1. Open your Canvas website in a browser, for example `https://canvas.eee.uci.edu` for UCI.
+1. Open your Canvas website in a browser, for example `https://canvas.yourschool.edu`.
 2. Log in normally with your school Canvas/SSO username and password.
 3. Click `Account`.
 4. Click `Settings`.
@@ -372,7 +370,7 @@ Safety rules are written into the prompts themselves: no AI-written work without
 6. `tool_resolve_assignment_source`
 7. If the source is Canvas, run `tool_prepare_assignment_workspace`.
 8. If the source is GitHub, inspect or clone the linked repo/file before preparing work.
-9. If the source is Gradescope, run `tool_gradescope_bridge_status` (the name is historical: it only checks your Gradescope login), then list Gradescope courses/assignments.
+9. If the source is Gradescope, run `tool_gradescope_status`, then list Gradescope courses/assignments.
 10. `tool_prepare_homework_help_pack`
 11. For homework completion requests, confirm that AI assistance is allowed for this assignment and that the user wants AI to complete/review/submit it.
 12. If confirmed, complete the work or prepare the requested draft; otherwise provide learning, debugging, or review help.
@@ -454,7 +452,7 @@ Canvas assignments that say to submit on Gradescope should be submitted through 
 
 ## Gradescope Tools
 
-- `tool_gradescope_bridge_status(...)`: checks whether your Gradescope login is set up and optionally that it works.
+- `tool_gradescope_status(...)`: checks whether your Gradescope login is set up and optionally that it works.
 - `tool_gradescope_list_courses(...)`: lists your Gradescope courses.
 - `tool_gradescope_list_assignments(...)`: lists assignments for one Gradescope course, with due and late-due dates and status.
 - `tool_gradescope_get_assignment_details(...)`: reads one Gradescope assignment's details.

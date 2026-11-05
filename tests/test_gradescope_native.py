@@ -191,7 +191,7 @@ def test_past_deadline_is_warned_about_in_the_preview(pdf):
     assert "Warning" not in gs.submit("111", "222", [pdf])
 
 
-# ---- independence from any separate gradescope-mcp ---------------------------------
+# ---- built-in only ----------------------------------------------------------------
 
 
 def test_server_tools_use_only_the_built_in_support():
@@ -201,7 +201,7 @@ def test_server_tools_use_only_the_built_in_support():
 
     tools = {t.name: t for t in asyncio.run(mcp.list_tools())}
     for name in (
-        "tool_gradescope_bridge_status",
+        "tool_gradescope_status",
         "tool_gradescope_list_courses",
         "tool_gradescope_list_assignments",
         "tool_gradescope_get_assignment_details",

@@ -512,7 +512,7 @@ def tool_extract_due_and_submission_target(assignment_details: str) -> str:
 
 
 @mcp.tool()
-def tool_gradescope_bridge_status(check_login: bool = False) -> str:
+def tool_gradescope_status(check_login: bool = False) -> str:
     """Check whether the student's Gradescope login is set up, and optionally that it works."""
     return gradescope.status(check_login)
 
